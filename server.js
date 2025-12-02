@@ -10,6 +10,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 회원가입
+const authRoutes = require('./routes/auth');
+// /api/auth로 시작하는 모든 요청은 authRoutes로
+app.use('/api/auth', authRoutes);
+
 // 테스트 라우트
 app.get('/', (req, res) => {
   res.json({ message: '회계 프로그램 API 서버' });
