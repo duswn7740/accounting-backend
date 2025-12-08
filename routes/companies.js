@@ -68,4 +68,16 @@ router.get('/:companyId/rejected-employees',
   companyController.getRejectedEmployees
 );
 
+// 직원 역할 변경
+router.put('/update-employee-role',
+  authMiddleware,
+  companyController.updateEmployeeRole
+);
+
+// 회사 정보 조회
+router.get('/:companyId',
+  authMiddleware,
+  companyController.getCompanyById
+);
+
 module.exports = router;

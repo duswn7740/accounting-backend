@@ -134,6 +134,10 @@ async function findRejectedEmployees(companyId) {
   }));
 }
 
+// 직원 역할 변경
+async function updateEmployeeRole(companyUserId, role) {
+  await db.query(queries.UPDATE_EMPLOYEE_ROLE, [role, companyUserId]);
+}
 
 module.exports = {
   findUserCompanies,
@@ -147,6 +151,7 @@ module.exports = {
   findPendingRequests,
   updateRequestStatus,
   findApprovedEmployees,
-  findRejectedEmployees
+  findRejectedEmployees,
+  updateEmployeeRole
 };
 

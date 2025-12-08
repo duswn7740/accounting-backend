@@ -13,10 +13,13 @@ app.use(express.urlencoded({ extended: true }));
 // 회원가입
 const authRoutes = require('./routes/auth');
 const companyRoutes = require('./routes/companies'); 
+const clientRoutes = require('./routes/clients');
 
 // /api/auth로 시작하는 모든 요청은 authRoutes로
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/clients', clientRoutes);
+
 
 // 테스트 라우트
 app.get('/', (req, res) => {
@@ -27,3 +30,5 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 서버 실행 중: http://localhost:${PORT}`);
 });
+
+

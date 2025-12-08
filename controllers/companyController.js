@@ -137,18 +137,13 @@ async function getApprovedEmployees(req, res) {
     const userId = req.user.userId;
     const { companyId } = req.params;
     
-    console.log('승인된 직원 조회:', {userId, companyId});
-
     const employees = await companyService.getApprovedEmployees(userId, parseInt(companyId));
     
-    console.log('조회결과:', employees);
-
     res.status(200).json({
       employees
     });
     
   } catch (error) {
-    console.error('에러'. error.message);
     res.status(400).json({
       error: error.message
     });
@@ -174,6 +169,42 @@ async function getRejectedEmployees(req, res) {
   }
 }
 
+// 직원 역할 변경
+async function updateEmployeeRole(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { companyUserId, newRole } = req.body;
+    
+    const result = await companyService.updateEmployeeRole(userId, companyUserId, newRole);
+    
+    res.status(200).json(result);
+    
+  } catch (error) {
+    res.status(400).json({
+      error: error.message
+    });
+  }
+}
+
+// 회사 정보 조회
+async function getCompanyById(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { companyId } = req.params;
+    
+    const company = await companyService.getCompanyById(userId, parseInt(companyId));
+    
+    res.status(200).json({
+      company
+    });
+    
+  } catch (error) {
+    res.status(400).json({
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
   register,
   search,
@@ -183,5 +214,7 @@ module.exports = {
   getPendingRequests,
   handleRequest,
   getApprovedEmployees,
-  getRejectedEmployees
+  getRejectedEmployees,
+  updateEmployeeRole,
+  getCompanyById
 };

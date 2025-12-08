@@ -107,6 +107,13 @@ module.exports = {
     UPDATE company_users 
     SET status = ?, approved_by = ?, approved_at = NOW()
     WHERE company_user_id = ?
+  `,
+
+  // 직원 역할 변경
+  UPDATE_EMPLOYEE_ROLE: `
+    UPDATE company_users 
+    SET role = ? 
+    WHERE company_user_id = ?
   `
 };
 

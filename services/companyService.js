@@ -210,6 +210,76 @@ async function getRejectedEmployees(userId, companyId) {
   return employees;
 }
 
+// 직원 역할 변경
+async function updateEmployeeRole(userId, companyUserId, newRole) {
+  // 1. 유효한 역할인지 확인
+  const validRoles = ['ACCOUNTANT', 'VIEWER'];
+  if (!validRoles.includes(newRole)) {
+    throw new Error('유효하지 않은 역할입니다');
+  }
+  
+  // 2. company_user_id로 회사 정보 가져오기
+  const [rows] = await db.query(
+    'SELECT company_id, user_id, role FROM company_users WHERE company_user_id = ?',
+    [companyUserId]
+  );
+  
+  if (rows.length === 0) {
+    throw new Error('존재하지 않는 직원입니다');
+  }
+  
+  const { company_id: companyId, user_id: targetUserId, role: currentRole } = rows[0];
+  
+  // 3. ADMIN은 역할 변경 불가
+  if (currentRole === 'ADMIN') {
+    throw new Error('관리자의 역할은 변경할 수 없습니다');
+  }
+  
+  // 4. 요청한 사람이 해당 회사의 ADMIN인지 확인
+  const userCompanies = await companyModel.findAllUserCompanies(userId);
+  const isAdmin = userCompanies.some(
+    c => c.companyId === companyId && c.role === 'ADMIN' && c.status === 'APPROVED'
+  );
+  
+  if (!isAdmin) {
+    throw new Error('권한이 없습니다');
+  }
+  
+  // 5. 역할 변경
+  await companyModel.updateEmployeeRole(companyUserId, newRole);
+  
+  return {
+    message: '역할이 변경되었습니다'
+  };
+}
+
+// 회사 정보 조회
+async function getCompanyById(userId, companyId) {
+  // 권한 확인
+  const userCompanies = await companyModel.findAllUserCompanies(userId);
+  const hasAccess = userCompanies.some(
+    c => c.companyId === companyId && c.status === 'APPROVED'
+  );
+  
+  if (!hasAccess) {
+    throw new Error('해당 회사에 접근 권한이 없습니다');
+  }
+  
+  // 회사 정보 조회
+  const company = await companyModel.findById(companyId);
+  
+  if (!company) {
+    throw new Error('존재하지 않는 회사입니다');
+  }
+  
+  return {
+    companyId: company.company_id,
+    companyName: company.company_name,
+    businessNumber: company.business_number,
+    ceoName: company.ceo_name
+  };
+}
+
 module.exports = {
   registerCompany,
   searchCompanies,
@@ -219,5 +289,7 @@ module.exports = {
   getPendingRequests,
   handleRequest,
   getApprovedEmployees,
-  getRejectedEmployees
+  getRejectedEmployees,
+  updateEmployeeRole,
+  getCompanyById
 };
