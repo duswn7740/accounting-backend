@@ -1,4 +1,5 @@
 const companyModel = require('../models/companyModel');
+const accountModel = require('../models/accountModel'); 
 const db = require('../config/database');
 const queries = require('../queries/companyQueries');
 
@@ -41,6 +42,9 @@ async function registerCompany(userId, companyData) {
     'ADMIN',
     'APPROVED'
   );
+
+  // 5. 시스템 기본 계정과목 자동 복사
+  await accountModel.copySystemAccounts(newCompany.companyId);
   
   return newCompany;
 }
