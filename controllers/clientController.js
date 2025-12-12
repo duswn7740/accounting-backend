@@ -17,28 +17,37 @@ async function createClient(req, res) {
   }
 }
 
-// 거래처 목록 조회
+// 거래처 목록 조회 (카테고리별 또는 전체)
 async function getClientsByCategory(req, res) {
   try {
     const userId = req.user.userId;
     const { companyId, category } = req.query;
-    
-    const clients = await clientService.getClientsByCategory(
-      userId, 
-      parseInt(companyId), 
-      category
-    );
-    
-    res.status(200).json({
-      clients
-    });
-    
+
+    let result;
+    if (category) {
+      // 카테고리가 있으면 카테고리별 조회
+      result = await clientService.getClientsByCategory(
+        userId,
+        parseInt(companyId),
+        category
+      );
+    } else {
+      // 카테고리가 없으면 전체 조회
+      result = await clientService.getClientsByCompany(
+        userId,
+        parseInt(companyId)
+      );
+    }
+
+    res.status(200).json(result);
+
   } catch (error) {
     res.status(400).json({
       error: error.message
     });
   }
 }
+
 
 // 거래처 상세 조회
 async function getClientById(req, res) {

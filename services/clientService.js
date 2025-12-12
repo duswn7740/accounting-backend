@@ -45,15 +45,33 @@ async function getClientsByCategory(userId, companyId, category) {
   const userRole = userCompanies.find(
     c => c.companyId === companyId && c.status === 'APPROVED'
   );
-  
+
   if (!userRole) {
     throw new Error('해당 회사에 접근 권한이 없습니다');
   }
-  
+
   // 2. 거래처 목록 조회
   const clients = await clientModel.findClientsByCategory(companyId, category);
-  
-  return clients;
+
+  return { clients };
+}
+
+// 회사별 전체 거래처 조회
+async function getClientsByCompany(userId, companyId) {
+  // 1. 권한 확인 (해당 회사 소속인지)
+  const userCompanies = await companyModel.findAllUserCompanies(userId);
+  const userRole = userCompanies.find(
+    c => c.companyId === companyId && c.status === 'APPROVED'
+  );
+
+  if (!userRole) {
+    throw new Error('해당 회사에 접근 권한이 없습니다');
+  }
+
+  // 2. 거래처 목록 조회
+  const clients = await clientModel.findClientsByCompany(companyId);
+
+  return { clients };
 }
 
 // 거래처 상세 조회
@@ -147,9 +165,9 @@ async function checkClientCode(userId, companyId, clientCode, category) {
   // 2. 카테고리 범위 확인
   const code = parseInt(clientCode);
   let startNum, endNum;
-  
+
   if (category === '일반') {
-    startNum = 1;
+    startNum = 101;
     endNum = 97999;
   } else if (category === '은행') {
     startNum = 98000;
@@ -164,8 +182,8 @@ async function checkClientCode(userId, companyId, clientCode, category) {
   }
   
   // 3. 중복 확인
-  const isDuplicated = await clientModel.checkClientCode(companyId, clientCode);
-  
+  const isDuplicated = await clientModel.checkClientCode(companyId, clientCode, category);
+
   return {
     available: !isDuplicated,
     message: isDuplicated ? '이미 사용 중인 코드입니다' : '사용 가능한 코드입니다'
@@ -196,6 +214,7 @@ async function getNextClientCode(userId, companyId, category) {
 module.exports = {
   createClient,
   getClientsByCategory,
+  getClientsByCompany,
   getClientById,
   updateClient,
   deleteClient,
