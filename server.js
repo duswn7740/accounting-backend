@@ -12,10 +12,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // routes
 const authRoutes = require('./routes/auth');
-const companyRoutes = require('./routes/companies'); 
+const companyRoutes = require('./routes/companies');
 const clientRoutes = require('./routes/clients');
 const accountRoutes = require('./routes/accounts');
 const voucherRoutes = require('./routes/vouchers');
+const salesPurchaseRoutes = require('./routes/salesPurchase');
 
 // /api/auth로 시작하는 모든 요청은 authRoutes로
 app.use('/api/auth', authRoutes);
@@ -23,6 +24,7 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/vouchers', voucherRoutes);
+app.use('/api/sales-purchase', salesPurchaseRoutes);
 
 // 테스트 라우트
 app.get('/', (req, res) => {
