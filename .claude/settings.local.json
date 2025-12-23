@@ -5,7 +5,9 @@
       "Bash(node:*)",
       "Bash(mysql:*)",
       "Bash(grep:*)",
-      "Bash(powershell -Command \"Get-Content ''models\\\\ledgerModel.js'' | Measure-Object -Line\")"
+      "Bash(powershell -Command \"Get-Content ''models\\\\ledgerModel.js'' | Measure-Object -Line\")",
+      "Bash(powershell -Command:*)",
+      "Bash(npm run query:*)"
     ]
   }
 }

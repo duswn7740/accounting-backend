@@ -123,24 +123,72 @@ async function getAccountSummary(companyId, filters) {
 
 // 전표 라인 수정
 async function updateVoucherLine(voucherType, voucherId, lineNo, lineData) {
-  const { account_code, debit_credit, amount, description_code, description } = lineData;
+  const { account_code, client_code, debit_credit, amount, description_code, description } = lineData;
+
+  console.log('updateVoucherLine - lineData:', lineData);
 
   // 필수 입력 검증
   if (!account_code || !account_code.trim()) {
     throw new Error('계정코드를 입력해주세요');
   }
 
-  // 계정코드로 account_id 조회
+  // 전표의 company_id 조회
+  let companyId;
+  if (voucherType === 'general') {
+    const [vouchers] = await db.query(
+      'SELECT company_id FROM general_vouchers WHERE voucher_id = ?',
+      [voucherId]
+    );
+    if (vouchers.length === 0) {
+      throw new Error('존재하지 않는 전표입니다');
+    }
+    companyId = vouchers[0].company_id;
+  } else {
+    const [vouchers] = await db.query(
+      'SELECT company_id FROM sales_purchase_vouchers WHERE voucher_id = ?',
+      [voucherId]
+    );
+    if (vouchers.length === 0) {
+      throw new Error('존재하지 않는 전표입니다');
+    }
+    companyId = vouchers[0].company_id;
+  }
+
+  console.log('updateVoucherLine - companyId:', companyId);
+
+  // 계정코드로 account_id 조회 (company_id 조건 추가)
   const [accounts] = await db.query(
-    'SELECT account_id FROM accounts WHERE account_code = ?',
-    [account_code]
+    'SELECT account_id FROM accounts WHERE account_code = ? AND company_id = ?',
+    [account_code, companyId]
   );
+
+  console.log('updateVoucherLine - accounts:', accounts);
 
   if (accounts.length === 0) {
     throw new Error('존재하지 않는 계정코드입니다');
   }
 
   const accountId = accounts[0].account_id;
+  console.log('updateVoucherLine - accountId:', accountId);
+
+  // 거래처코드로 client_id 조회 (company_id 조건 추가)
+  let clientId = null;
+  if (client_code && client_code.trim()) {
+    console.log('updateVoucherLine - client_code:', client_code);
+    const [clients] = await db.query(
+      'SELECT client_id FROM clients WHERE client_code = ? AND company_id = ?',
+      [client_code, companyId]
+    );
+
+    console.log('updateVoucherLine - clients:', clients);
+
+    if (clients.length === 0) {
+      throw new Error('존재하지 않는 거래처코드입니다');
+    }
+
+    clientId = clients[0].client_id;
+    console.log('updateVoucherLine - clientId:', clientId);
+  }
 
   if (voucherType === 'general') {
     // 일반전표 라인 수정
@@ -148,13 +196,25 @@ async function updateVoucherLine(voucherType, voucherId, lineNo, lineData) {
     const debitAmount = debit_credit === '차변' ? amount : 0;
     const creditAmount = debit_credit === '대변' ? amount : 0;
 
-    await db.query(
+    console.log('updateVoucherLine - general voucher parameters:', {
+      amount,
+      description_code,
+      accountId,
+      clientId,
+      debitAmount,
+      creditAmount,
+      description,
+      voucherId,
+      lineNo
+    });
+
+    const [updateResult] = await db.query(
       voucherQueries.UPDATE_VOUCHER_LINE_BY_NO,
       [
         amount,
         description_code || null,
         accountId,
-        null, // client_id
+        clientId,
         debitAmount,
         creditAmount,
         description || null,
@@ -165,11 +225,16 @@ async function updateVoucherLine(voucherType, voucherId, lineNo, lineData) {
       ]
     );
 
+    console.log('updateVoucherLine - UPDATE result:', updateResult);
+    console.log('updateVoucherLine - affected rows:', updateResult.affectedRows);
+
     // 전표 합계 재계산
     const [lines] = await db.query(
       'SELECT SUM(debit_amount) as total_debit, SUM(credit_amount) as total_credit FROM general_voucher_lines WHERE voucher_id = ?',
       [voucherId]
     );
+
+    console.log('updateVoucherLine - total calculation:', lines[0]);
 
     await db.query(
       voucherQueries.UPDATE_VOUCHER_TOTALS,
@@ -179,11 +244,23 @@ async function updateVoucherLine(voucherType, voucherId, lineNo, lineData) {
     // 매입매출전표 라인 수정
     const salesPurchaseQueries = require('../queries/salesPurchaseQueries');
 
-    await db.query(
+    console.log('updateVoucherLine - sales/purchase voucher parameters:', {
+      debit_credit,
+      accountId,
+      clientId,
+      amount,
+      description,
+      description_code,
+      voucherId,
+      lineNo
+    });
+
+    const [updateResult] = await db.query(
       salesPurchaseQueries.UPDATE_VOUCHER_LINE,
       [
         debit_credit,
         accountId,
+        clientId,
         amount,
         description || null,
         description_code || null,
@@ -194,11 +271,16 @@ async function updateVoucherLine(voucherType, voucherId, lineNo, lineData) {
       ]
     );
 
+    console.log('updateVoucherLine - UPDATE result:', updateResult);
+    console.log('updateVoucherLine - affected rows:', updateResult.affectedRows);
+
     // 전표 합계 재계산
     const [lines] = await db.query(
       'SELECT SUM(amount) as total FROM sales_purchase_voucher_lines WHERE voucher_id = ?',
       [voucherId]
     );
+
+    console.log('updateVoucherLine - total calculation:', lines[0]);
 
     // 매입매출 전표는 total_amount만 업데이트 (간단히)
     await db.query(
@@ -212,30 +294,90 @@ async function updateVoucherLine(voucherType, voucherId, lineNo, lineData) {
 
 // 전표 라인 추가
 async function addVoucherLine(voucherType, voucherId, lineData) {
-  const { line_no, account_code, debit_credit, amount, description_code, description } = lineData;
+  const { line_no, account_code, client_code, debit_credit, amount, description_code, description } = lineData;
+
+  console.log('addVoucherLine - lineData:', lineData);
 
   // 필수 입력 검증
   if (!account_code || !account_code.trim()) {
     throw new Error('계정코드를 입력해주세요');
   }
 
-  // 계정코드로 account_id 조회
+  // 전표의 company_id 조회
+  let companyId;
+  if (voucherType === 'general') {
+    const [vouchers] = await db.query(
+      'SELECT company_id FROM general_vouchers WHERE voucher_id = ?',
+      [voucherId]
+    );
+    if (vouchers.length === 0) {
+      throw new Error('존재하지 않는 전표입니다');
+    }
+    companyId = vouchers[0].company_id;
+  } else {
+    const [vouchers] = await db.query(
+      'SELECT company_id FROM sales_purchase_vouchers WHERE voucher_id = ?',
+      [voucherId]
+    );
+    if (vouchers.length === 0) {
+      throw new Error('존재하지 않는 전표입니다');
+    }
+    companyId = vouchers[0].company_id;
+  }
+
+  console.log('addVoucherLine - companyId:', companyId);
+
+  // 계정코드로 account_id 조회 (company_id 조건 추가)
   const [accounts] = await db.query(
-    'SELECT account_id FROM accounts WHERE account_code = ?',
-    [account_code]
+    'SELECT account_id FROM accounts WHERE account_code = ? AND company_id = ?',
+    [account_code, companyId]
   );
+
+  console.log('addVoucherLine - accounts:', accounts);
 
   if (accounts.length === 0) {
     throw new Error('존재하지 않는 계정코드입니다');
   }
 
   const accountId = accounts[0].account_id;
+  console.log('addVoucherLine - accountId:', accountId);
+
+  // 거래처코드로 client_id 조회 (company_id 조건 추가)
+  let clientId = null;
+  if (client_code && client_code.trim()) {
+    console.log('addVoucherLine - client_code:', client_code);
+    const [clients] = await db.query(
+      'SELECT client_id FROM clients WHERE client_code = ? AND company_id = ?',
+      [client_code, companyId]
+    );
+
+    console.log('addVoucherLine - clients:', clients);
+
+    if (clients.length === 0) {
+      throw new Error('존재하지 않는 거래처코드입니다');
+    }
+
+    clientId = clients[0].client_id;
+    console.log('addVoucherLine - clientId:', clientId);
+  }
 
   if (voucherType === 'general') {
     // 일반전표 라인 추가
     const voucherQueries = require('../queries/voucherQueries');
     const debitAmount = debit_credit === '차변' ? amount : 0;
     const creditAmount = debit_credit === '대변' ? amount : 0;
+
+    console.log('addVoucherLine - general voucher parameters:', {
+      voucherId,
+      line_no,
+      amount,
+      description_code,
+      accountId,
+      clientId,
+      debitAmount,
+      creditAmount,
+      description
+    });
 
     await db.query(
       voucherQueries.CREATE_VOUCHER_LINE,
@@ -245,7 +387,7 @@ async function addVoucherLine(voucherType, voucherId, lineData) {
         amount,
         description_code || null,
         accountId,
-        null, // client_id
+        clientId,
         debitAmount,
         creditAmount,
         description || null,
@@ -268,6 +410,17 @@ async function addVoucherLine(voucherType, voucherId, lineData) {
     // 매입매출전표 라인 추가
     const salesPurchaseQueries = require('../queries/salesPurchaseQueries');
 
+    console.log('addVoucherLine - sales/purchase voucher parameters:', {
+      voucherId,
+      line_no,
+      debit_credit,
+      accountId,
+      clientId,
+      amount,
+      description,
+      description_code
+    });
+
     await db.query(
       salesPurchaseQueries.CREATE_VOUCHER_LINE,
       [
@@ -275,6 +428,7 @@ async function addVoucherLine(voucherType, voucherId, lineData) {
         line_no,
         debit_credit,
         accountId,
+        clientId,
         amount,
         description || null,
         description_code || null,

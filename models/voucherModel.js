@@ -54,7 +54,7 @@ async function createVoucherLine(lineData) {
 
   const [result] = await db.query(
     queries.CREATE_VOUCHER_LINE,
-    [voucherId, lineNo, voucherType, amount, descriptionCode,
+    [voucherId, lineNo, amount, descriptionCode,
      accountId, clientId, debitAmount, creditAmount, description,
      departmentCode, projectCode]
   );
@@ -72,7 +72,7 @@ async function updateVoucherLine(lineId, lineData) {
 
   await db.query(
     queries.UPDATE_VOUCHER_LINE,
-    [voucherType, amount, descriptionCode,
+    [amount, descriptionCode,
      accountId, clientId, debitAmount, creditAmount,
      description, departmentCode, projectCode, lineId]
   );

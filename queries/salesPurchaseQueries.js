@@ -11,10 +11,10 @@ const CREATE_VOUCHER = `
 // 매입매출 전표 라인 등록
 const CREATE_VOUCHER_LINE = `
   INSERT INTO sales_purchase_voucher_lines (
-    voucher_id, line_no, debit_credit, account_id,
+    voucher_id, line_no, debit_credit, account_id, client_id,
     amount, description, description_code,
     department_code, project_code
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 // 회사별 매입매출 전표 조회
@@ -76,9 +76,12 @@ const FIND_VOUCHER_LINES = `
   SELECT
     l.*,
     a.account_code,
-    a.account_name
+    a.account_name,
+    c.client_code,
+    c.client_name
   FROM sales_purchase_voucher_lines l
   LEFT JOIN accounts a ON l.account_id = a.account_id
+  LEFT JOIN clients c ON l.client_id = c.client_id
   WHERE l.voucher_id = ?
   ORDER BY l.line_no
 `;
@@ -114,6 +117,7 @@ const UPDATE_VOUCHER_LINE = `
   UPDATE sales_purchase_voucher_lines
   SET debit_credit = ?,
       account_id = ?,
+      client_id = ?,
       amount = ?,
       description = ?,
       description_code = ?,

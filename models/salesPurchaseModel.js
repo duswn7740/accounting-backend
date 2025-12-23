@@ -50,7 +50,7 @@ async function createVoucher(voucherData, lines) {
       const line = lines[i];
       await connection.query(
         queries.CREATE_VOUCHER_LINE,
-        [voucherId, i + 1, line.debitCredit, line.accountId,
+        [voucherId, i + 1, line.debitCredit, line.accountId, line.clientId || null,
          line.amount, line.description, line.descriptionCode,
          line.departmentCode, line.projectCode]
       );
@@ -125,7 +125,7 @@ async function updateVoucher(voucherId, voucherData, lines) {
       const line = lines[i];
       await connection.query(
         queries.CREATE_VOUCHER_LINE,
-        [voucherId, i + 1, line.debitCredit, line.accountId,
+        [voucherId, i + 1, line.debitCredit, line.accountId, line.clientId || null,
          line.amount, line.description, line.descriptionCode,
          line.departmentCode, line.projectCode]
       );

@@ -115,9 +115,13 @@ async function createVoucherWithLines(req, res) {
 // 전표 전체 수정 (여러 라인)
 async function updateVoucherWithLines(req, res) {
   try {
+    console.log('updateVoucherWithLines - START');
     const userId = req.user.userId;
     const { voucherId } = req.params;
     const voucherData = req.body;
+
+    console.log('updateVoucherWithLines - voucherId:', voucherId);
+    console.log('updateVoucherWithLines - voucherData:', JSON.stringify(voucherData, null, 2));
 
     const result = await voucherService.updateVoucherWithLines(
       userId,
@@ -128,6 +132,7 @@ async function updateVoucherWithLines(req, res) {
     res.status(200).json(result);
 
   } catch (error) {
+    console.log('updateVoucherWithLines - ERROR:', error.message);
     res.status(400).json({
       error: error.message
     });

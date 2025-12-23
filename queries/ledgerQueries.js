@@ -18,7 +18,7 @@ const GET_ACCOUNT_LEDGER = `
   FROM sales_purchase_voucher_lines l
   INNER JOIN sales_purchase_vouchers v ON l.voucher_id = v.voucher_id
   INNER JOIN accounts a ON l.account_id = a.account_id
-  LEFT JOIN clients c ON v.client_id = c.client_id
+  LEFT JOIN clients c ON l.client_id = c.client_id
   WHERE v.company_id = ?
     AND v.voucher_date BETWEEN ? AND ?
     AND a.account_code BETWEEN ? AND ?
@@ -87,7 +87,7 @@ const GET_ACCOUNT_LEDGER_ALL = `
   FROM sales_purchase_voucher_lines l
   INNER JOIN sales_purchase_vouchers v ON l.voucher_id = v.voucher_id
   INNER JOIN accounts a ON l.account_id = a.account_id
-  LEFT JOIN clients c ON v.client_id = c.client_id
+  LEFT JOIN clients c ON l.client_id = c.client_id
   WHERE v.company_id = ?
     AND v.voucher_date BETWEEN ? AND ?
     AND v.is_active = TRUE
@@ -191,7 +191,7 @@ const GET_CLIENT_LEDGER_SUMMARY = `
     FROM sales_purchase_voucher_lines l
     INNER JOIN sales_purchase_vouchers v ON l.voucher_id = v.voucher_id
     INNER JOIN accounts a ON l.account_id = a.account_id
-    INNER JOIN clients c ON v.client_id = c.client_id
+    INNER JOIN clients c ON l.client_id = c.client_id
     WHERE c.company_id = ?
       AND a.account_code = ?
       AND v.voucher_date BETWEEN ? AND ?
@@ -200,7 +200,6 @@ const GET_CLIENT_LEDGER_SUMMARY = `
     GROUP BY c.client_id, c.client_code, c.client_name, c.business_number
   ) combined
   GROUP BY client_id, client_code, client_name, business_number
-  HAVING (SUM(debit_total) > 0 OR SUM(credit_total) > 0)
   ORDER BY client_code ASC
 `;
 
@@ -243,7 +242,7 @@ const GET_CLIENT_LEDGER_DETAIL = `
   INNER JOIN accounts a ON l.account_id = a.account_id
   WHERE v.company_id = ?
     AND a.account_code = ?
-    AND v.client_id = ?
+    AND l.client_id = ?
     AND v.voucher_date BETWEEN ? AND ?
     AND v.is_active = TRUE
 

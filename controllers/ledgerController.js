@@ -60,7 +60,7 @@ async function getAccountSummary(req, res) {
 async function updateVoucherLine(req, res) {
   try {
     const { voucherType, voucherId, lineNo } = req.params;
-    const { account_code, debit_credit, amount, description_code, description } = req.body;
+    const { account_code, client_code, debit_credit, amount, description_code, description } = req.body;
 
     const result = await ledgerModel.updateVoucherLine(
       voucherType,
@@ -68,6 +68,7 @@ async function updateVoucherLine(req, res) {
       lineNo,
       {
         account_code,
+        client_code,
         debit_credit,
         amount,
         description_code,
@@ -92,7 +93,7 @@ async function updateVoucherLine(req, res) {
 async function addVoucherLine(req, res) {
   try {
     const { voucherType, voucherId } = req.params;
-    const { line_no, account_code, debit_credit, amount, description_code, description } = req.body;
+    const { line_no, account_code, client_code, debit_credit, amount, description_code, description } = req.body;
 
     const result = await ledgerModel.addVoucherLine(
       voucherType,
@@ -100,6 +101,7 @@ async function addVoucherLine(req, res) {
       {
         line_no,
         account_code,
+        client_code,
         debit_credit,
         amount,
         description_code,
