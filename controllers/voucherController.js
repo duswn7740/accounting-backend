@@ -134,11 +134,40 @@ async function updateVoucherWithLines(req, res) {
   }
 }
 
+// 전표 삭제
+async function deleteVoucher(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { voucherId } = req.params;
+    const { companyId } = req.query;
+
+    if (!companyId) {
+      return res.status(400).json({
+        error: '회사 ID가 필요합니다'
+      });
+    }
+
+    const result = await voucherService.deleteVoucher(
+      userId,
+      parseInt(voucherId),
+      parseInt(companyId)
+    );
+
+    res.status(200).json(result);
+
+  } catch (error) {
+    res.status(400).json({
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
   getVoucherLinesByDate,
   createVoucherLine,
   updateVoucherLine,
   deleteVoucherLine,
   createVoucherWithLines,
-  updateVoucherWithLines
+  updateVoucherWithLines,
+  deleteVoucher
 };

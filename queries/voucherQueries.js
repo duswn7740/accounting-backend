@@ -53,20 +53,30 @@ const CREATE_VOUCHER = `
 // 전표 라인 생성
 const CREATE_VOUCHER_LINE = `
   INSERT INTO general_voucher_lines (
-    voucher_id, line_no, voucher_type, amount, description_code,
+    voucher_id, line_no, amount, description_code,
     account_id, client_id, debit_amount, credit_amount, description,
     department_code, project_code
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
-// 전표 라인 수정
+// 전표 라인 수정 (line_id 기준)
 const UPDATE_VOUCHER_LINE = `
   UPDATE general_voucher_lines
-  SET voucher_type = ?, amount = ?, description_code = ?,
+  SET amount = ?, description_code = ?,
       account_id = ?, client_id = ?,
       debit_amount = ?, credit_amount = ?,
       description = ?, department_code = ?, project_code = ?
   WHERE line_id = ?
+`;
+
+// 전표 라인 수정 (voucher_id + line_no 기준)
+const UPDATE_VOUCHER_LINE_BY_NO = `
+  UPDATE general_voucher_lines
+  SET amount = ?, description_code = ?,
+      account_id = ?, client_id = ?,
+      debit_amount = ?, credit_amount = ?,
+      description = ?, department_code = ?, project_code = ?
+  WHERE voucher_id = ? AND line_no = ?
 `;
 
 // 전표 라인 삭제
@@ -138,6 +148,7 @@ module.exports = {
   CREATE_VOUCHER,
   CREATE_VOUCHER_LINE,
   UPDATE_VOUCHER_LINE,
+  UPDATE_VOUCHER_LINE_BY_NO,
   DELETE_VOUCHER_LINE,
   UPDATE_VOUCHER_TOTALS,
   DELETE_VOUCHER,

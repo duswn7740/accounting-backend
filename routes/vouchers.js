@@ -39,4 +39,10 @@ router.put('/batch/:voucherId',
   voucherController.updateVoucherWithLines
 );
 
+// 전표 삭제
+router.delete('/:voucherId',
+  authMiddleware,
+  voucherController.deleteVoucher
+);
+
 module.exports = router;

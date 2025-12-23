@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(node:*)",
+      "Bash(mysql:*)",
+      "Bash(grep:*)",
+      "Bash(powershell -Command \"Get-Content ''models\\\\ledgerModel.js'' | Measure-Object -Line\")"
     ]
   }
 }

@@ -359,11 +359,42 @@ async function updateVoucherWithLines(userId, voucherId, voucherData) {
   return { message: '전표가 수정되었습니다', voucherId };
 }
 
+// 전표 삭제 (헤더와 모든 라인 삭제)
+async function deleteVoucher(userId, voucherId, companyId) {
+  // 권한 확인 (ADMIN 또는 ACCOUNTANT)
+  const userCompanies = await companyModel.findAllUserCompanies(userId);
+  const userRole = userCompanies.find(
+    c => c.companyId === companyId && c.status === 'APPROVED'
+  );
+
+  if (!userRole || !['ADMIN', 'ACCOUNTANT'].includes(userRole.role)) {
+    throw new Error('전표 삭제 권한이 없습니다');
+  }
+
+  // 전표 존재 확인
+  const voucher = await voucherModel.findVoucherById(voucherId);
+  if (!voucher) {
+    throw new Error('존재하지 않는 전표입니다');
+  }
+
+  // 모든 라인 삭제
+  const lines = await voucherModel.findVoucherLinesByVoucher(voucherId);
+  for (const line of lines) {
+    await voucherModel.deleteVoucherLine(line.line_id);
+  }
+
+  // 전표 헤더 삭제
+  await voucherModel.deleteVoucher(voucherId);
+
+  return { message: '전표가 삭제되었습니다' };
+}
+
 module.exports = {
   getVoucherLinesByDate,
   createVoucherLine,
   updateVoucherLine,
   deleteVoucherLine,
   createVoucherWithLines,
-  updateVoucherWithLines
+  updateVoucherWithLines,
+  deleteVoucher
 };

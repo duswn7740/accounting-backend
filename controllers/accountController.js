@@ -5,25 +5,28 @@ const accountModel = require('../models/accountModel')
 async function getAccountsByCompany(req, res) {
   try {
     const userId = req.user.userId;
-    const { companyId } = req.query;
-    
+    const companyId = req.query.companyId || req.user.companyId;
+
     if (!companyId) {
       return res.status(400).json({
+        success: false,
         error: '회사 ID가 필요합니다'
       });
     }
-    
+
     const accounts = await accountService.getAccountsByCompany(
-      userId, 
+      userId,
       parseInt(companyId)
     );
-    
+
     res.status(200).json({
+      success: true,
       accounts
     });
-    
+
   } catch (error) {
     res.status(400).json({
+      success: false,
       error: error.message
     });
   }

@@ -78,10 +78,11 @@ async function login(email, password) {
   
   // 6. JWT 토큰 생성
   const token = jwt.sign(
-    { 
+    {
       userId: user.userId,
       email: user.email,
-      userType: user.userType
+      userType: user.userType,
+      companyId: companyId
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }

@@ -22,7 +22,8 @@ function authMiddleware(req, res, next) {
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
-      userType: decoded.userType
+      userType: decoded.userType,
+      companyId: decoded.companyId
     };
 
     // 5. 다음 단계로 (Controller 실행)

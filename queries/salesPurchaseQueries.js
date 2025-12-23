@@ -109,6 +109,19 @@ const UPDATE_VOUCHER = `
   WHERE voucher_id = ?
 `;
 
+// 전표 라인 수정
+const UPDATE_VOUCHER_LINE = `
+  UPDATE sales_purchase_voucher_lines
+  SET debit_credit = ?,
+      account_id = ?,
+      amount = ?,
+      description = ?,
+      description_code = ?,
+      department_code = ?,
+      project_code = ?
+  WHERE voucher_id = ? AND line_no = ?
+`;
+
 // 전표 라인 삭제 (수정 시)
 const DELETE_VOUCHER_LINES = `
   DELETE FROM sales_purchase_voucher_lines
@@ -173,6 +186,7 @@ module.exports = {
   FIND_VOUCHER_LINES,
   GET_LAST_VOUCHER_NO,
   UPDATE_VOUCHER,
+  UPDATE_VOUCHER_LINE,
   DELETE_VOUCHER_LINES,
   DELETE_VOUCHER,
   FIND_VOUCHERS_BY_DATE_RANGE
