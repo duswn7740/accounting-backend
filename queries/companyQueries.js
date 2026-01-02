@@ -1,8 +1,8 @@
 module.exports = {
   // 회사등록 (회원가입시-admin 체크)
   CREATE_COMPANY: `
-    INSERT INTO companies (business_number, company_name, ceo_name, address, tel, industry, fiscal_year_end) 
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO companies (business_number, company_name, ceo_name, address, tel, industry, fiscal_year_end, opening_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `,
 
   // 사업자번호로 회사 찾기 (중복 체크)
@@ -111,9 +111,25 @@ module.exports = {
 
   // 직원 역할 변경
   UPDATE_EMPLOYEE_ROLE: `
-    UPDATE company_users 
-    SET role = ? 
+    UPDATE company_users
+    SET role = ?
     WHERE company_user_id = ?
+  `,
+
+  // 회사의 회계기수 목록 조회
+  FIND_FISCAL_PERIODS: `
+    SELECT
+      period_id,
+      company_id,
+      fiscal_year,
+      DATE_FORMAT(start_date, '%Y-%m-%d') as start_date,
+      DATE_FORMAT(end_date, '%Y-%m-%d') as end_date,
+      is_closed,
+      closed_at,
+      closed_by
+    FROM fiscal_periods
+    WHERE company_id = ?
+    ORDER BY fiscal_year ASC
   `
 };
 

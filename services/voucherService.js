@@ -1,7 +1,32 @@
 const voucherModel = require('../models/voucherModel');
 const companyModel = require('../models/companyModel');
 
-// 전표 라인 조회 (날짜 범위)
+// 전표 라인 조회 (회계기수별)
+async function getVoucherLinesByFiscalYear(userId, companyId, fiscalYear) {
+  // 권한 확인
+  const userCompanies = await companyModel.findAllUserCompanies(userId);
+  const hasAccess = userCompanies.some(
+    c => c.companyId === companyId && c.status === 'APPROVED'
+  );
+
+  if (!hasAccess) {
+    throw new Error('해당 회사에 접근 권한이 없습니다');
+  }
+
+  const lines = await voucherModel.findAllVoucherLinesByFiscalYear(
+    companyId,
+    fiscalYear
+  );
+
+  console.log('[전표 조회] 샘플 데이터 (첫 3개):');
+  lines.slice(0, 3).forEach(line => {
+    console.log(`  voucher_type: ${line.voucher_type}, debit: ${line.debit_amount}, credit: ${line.credit_amount}, amount: ${line.amount}`);
+  });
+
+  return { lines };
+}
+
+// 전표 라인 조회 (날짜 범위 - 호환성)
 async function getVoucherLinesByDate(userId, companyId, startDate, endDate) {
   // 권한 확인
   const userCompanies = await companyModel.findAllUserCompanies(userId);
@@ -35,13 +60,31 @@ async function createVoucherLine(userId, lineData) {
     throw new Error('전표 작성 권한이 없습니다');
   }
 
+  // 전표 날짜 검증: 회계기수 범위 내에 있는지 확인
+  if (lineData.voucherDate) {
+    const fiscalPeriod = await companyModel.findFiscalPeriodByDate(
+      companyId,
+      lineData.voucherDate
+    );
+
+    if (!fiscalPeriod) {
+      throw new Error('전표 날짜가 유효한 회계기수에 속하지 않습니다. 회계기수를 먼저 생성해주세요.');
+    }
+
+    if (fiscalPeriod.is_closed) {
+      throw new Error(`${fiscalPeriod.fiscal_year}기는 이미 마감되었습니다. 마감된 회계기수에는 전표를 입력할 수 없습니다.`);
+    }
+  }
+
   let voucherId = lineData.voucherId;
-  
+
   if (!voucherId) {
+    console.log('[createVoucherLine] 전표번호 자동 생성 시작 - companyId:', companyId, 'voucherDate:', lineData.voucherDate);
     const voucherNo = await voucherModel.getNextVoucherNo(
       companyId,
       lineData.voucherDate
     );
+    console.log('[createVoucherLine] 생성된 전표번호:', voucherNo);
 
     voucherId = await voucherModel.createVoucher({
       companyId,
@@ -53,6 +96,7 @@ async function createVoucherLine(userId, lineData) {
       status: '확정',
       createdBy: userId
     });
+    console.log('[createVoucherLine] 생성된 voucherId:', voucherId, 'voucherNo:', voucherNo);
   }
 
   const existingLines = await voucherModel.findVoucherLinesByVoucher(voucherId);
@@ -206,6 +250,27 @@ async function createVoucherWithLines(userId, voucherData) {
     throw new Error('전표 작성 권한이 없습니다');
   }
 
+  // 전표 날짜 검증: 회계기수 범위 내에 있는지 확인
+  if (voucherDate) {
+    console.log('[전표 생성] companyId:', companyId, 'voucherDate:', voucherDate);
+
+    const fiscalPeriod = await companyModel.findFiscalPeriodByDate(
+      companyId,
+      voucherDate
+    );
+
+    console.log('[전표 생성] 찾은 회계기수:', fiscalPeriod);
+
+    if (!fiscalPeriod) {
+      console.error('[전표 생성 실패] 회계기수를 찾을 수 없음. companyId:', companyId, 'voucherDate:', voucherDate);
+      throw new Error('전표 날짜가 유효한 회계기수에 속하지 않습니다. 회계기수를 먼저 생성해주세요.');
+    }
+
+    if (fiscalPeriod.is_closed) {
+      throw new Error(`${fiscalPeriod.fiscal_year}기는 이미 마감되었습니다. 마감된 회계기수에는 전표를 입력할 수 없습니다.`);
+    }
+  }
+
   // 차대변 합계 검증
   let totalDebit = 0;
   let totalCredit = 0;
@@ -225,10 +290,16 @@ async function createVoucherWithLines(userId, voucherData) {
   }
 
   // 전표번호 결정 (수동 입력 또는 자동 생성)
+  console.log('[전표 생성] voucherNo 원본:', voucherNo, 'typeof:', typeof voucherNo, '!voucherNo:', !voucherNo);
   let finalVoucherNo = voucherNo;
   if (!finalVoucherNo) {
+    console.log('[전표 생성] voucherNo가 비어있어서 자동 생성 시작');
     finalVoucherNo = await voucherModel.getNextVoucherNo(companyId, voucherDate);
+    console.log('[전표 생성] 자동 생성된 번호:', finalVoucherNo);
+  } else {
+    console.log('[전표 생성] voucherNo가 이미 있음:', finalVoucherNo);
   }
+  console.log('[전표 생성] 최종 전표번호:', finalVoucherNo);
 
   // 전표 헤더 생성
   const voucherId = await voucherModel.createVoucher({
@@ -295,6 +366,18 @@ async function updateVoucherWithLines(userId, voucherId, voucherData) {
   const voucher = await voucherModel.findVoucherById(voucherId);
   if (!voucher) {
     throw new Error('존재하지 않는 전표입니다');
+  }
+
+  // 전표 날짜 검증: 회계기수가 마감되었는지 확인
+  if (voucher.voucher_date) {
+    const fiscalPeriod = await companyModel.findFiscalPeriodByDate(
+      companyId,
+      voucher.voucher_date
+    );
+
+    if (fiscalPeriod && fiscalPeriod.is_closed) {
+      throw new Error(`${fiscalPeriod.fiscal_year}기는 이미 마감되었습니다. 마감된 회계기수의 전표는 수정할 수 없습니다.`);
+    }
   }
 
   // 차대변 합계 검증
@@ -390,6 +473,7 @@ async function deleteVoucher(userId, voucherId, companyId) {
 }
 
 module.exports = {
+  getVoucherLinesByFiscalYear,
   getVoucherLinesByDate,
   createVoucherLine,
   updateVoucherLine,

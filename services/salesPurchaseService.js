@@ -13,6 +13,22 @@ async function createVoucher(userId, voucherData, lines) {
     throw new Error('전표 등록 권한이 없습니다');
   }
 
+  // 전표 날짜 검증: 회계기수 범위 내에 있는지 확인
+  if (voucherData.voucherDate) {
+    const fiscalPeriod = await companyModel.findFiscalPeriodByDate(
+      voucherData.companyId,
+      voucherData.voucherDate
+    );
+
+    if (!fiscalPeriod) {
+      throw new Error('전표 날짜가 유효한 회계기수에 속하지 않습니다. 회계기수를 먼저 생성해주세요.');
+    }
+
+    if (fiscalPeriod.is_closed) {
+      throw new Error(`${fiscalPeriod.fiscal_year}기는 이미 마감되었습니다. 마감된 회계기수에는 전표를 입력할 수 없습니다.`);
+    }
+  }
+
   // 2. 차대변 검증
   const debitTotal = lines
     .filter(l => l.debitCredit === '차변')

@@ -8,7 +8,7 @@ async function findUserCompanies(userId) {
 }
 
 // 회사 등록하기
-const createCompany = async (businessNumber, companyName, ceoName, address, tel, industry, fiscalYearEnd, ) => {
+const createCompany = async (businessNumber, companyName, ceoName, address, tel, industry, fiscalYearEnd, openingDate) => {
   const [result] = await db.query(queries.CREATE_COMPANY, [
     businessNumber,
     companyName,
@@ -16,7 +16,8 @@ const createCompany = async (businessNumber, companyName, ceoName, address, tel,
     address,
     tel,
     industry,
-    fiscalYearEnd
+    fiscalYearEnd,
+    openingDate
   ]);
   return {
     companyId : result.insertId,
@@ -26,7 +27,8 @@ const createCompany = async (businessNumber, companyName, ceoName, address, tel,
     address,
     tel,
     industry,
-    fiscalYearEnd
+    fiscalYearEnd,
+    openingDate
   };
 }
 
@@ -139,11 +141,35 @@ async function updateEmployeeRole(companyUserId, role) {
   await db.query(queries.UPDATE_EMPLOYEE_ROLE, [role, companyUserId]);
 }
 
+// 회계기수 정보 조회 (날짜 검증용)
+async function findFiscalPeriodByYear(companyId, fiscalYear) {
+  const [rows] = await db.query(
+    `SELECT period_id, company_id, fiscal_year, start_date, end_date, is_closed
+     FROM fiscal_periods
+     WHERE company_id = ? AND fiscal_year = ?`,
+    [companyId, fiscalYear]
+  );
+  return rows[0];
+}
+
+// 날짜가 속한 회계기수 찾기
+async function findFiscalPeriodByDate(companyId, voucherDate) {
+  const [rows] = await db.query(
+    `SELECT period_id, company_id, fiscal_year, start_date, end_date, is_closed
+     FROM fiscal_periods
+     WHERE company_id = ?
+       AND DATE(?) BETWEEN DATE(start_date) AND DATE(end_date)
+     LIMIT 1`,
+    [companyId, voucherDate]
+  );
+  return rows[0];
+}
+
 module.exports = {
   findUserCompanies,
   createCompany,
   findByBusinessNumber,
-  searchCompanies,      
+  searchCompanies,
   findById,
   createCompanyUser,
   findUserCompanyRelation,
@@ -152,6 +178,8 @@ module.exports = {
   updateRequestStatus,
   findApprovedEmployees,
   findRejectedEmployees,
-  updateEmployeeRole
+  updateEmployeeRole,
+  findFiscalPeriodByYear,
+  findFiscalPeriodByDate
 };
 

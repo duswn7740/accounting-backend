@@ -3,7 +3,13 @@ const router = express.Router();
 const voucherController = require('../controllers/voucherController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// 전표 라인 조회
+// 전표 라인 조회 (회계기수별)
+router.get('/by-fiscal-year',
+  authMiddleware,
+  voucherController.getVoucherLinesByFiscalYear
+);
+
+// 전표 라인 조회 (날짜별 - 호환성)
 router.get('/',
   authMiddleware,
   voucherController.getVoucherLinesByDate

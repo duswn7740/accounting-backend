@@ -10,7 +10,8 @@ async function getAccountLedger(req, res) {
       endMonth: req.query.endMonth ? parseInt(req.query.endMonth) : null,
       endDay: req.query.endDay ? parseInt(req.query.endDay) : null,
       startAccountCode: req.query.startAccountCode || null,
-      endAccountCode: req.query.endAccountCode || null
+      endAccountCode: req.query.endAccountCode || null,
+      fiscalYear: req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null
     };
 
     const ledger = await ledgerModel.getAccountLedger(companyId, filters);
@@ -38,7 +39,8 @@ async function getAccountSummary(req, res) {
       endMonth: req.query.endMonth ? parseInt(req.query.endMonth) : null,
       endDay: req.query.endDay ? parseInt(req.query.endDay) : null,
       startAccountCode: req.query.startAccountCode || null,
-      endAccountCode: req.query.endAccountCode || null
+      endAccountCode: req.query.endAccountCode || null,
+      fiscalYear: req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null
     };
 
     const summary = await ledgerModel.getAccountSummary(companyId, filters);
@@ -153,7 +155,8 @@ async function getClientLedgerSummary(req, res) {
       endDay: req.query.endDay ? parseInt(req.query.endDay) : null,
       accountCode: req.query.accountCode || null,
       startClientCode: req.query.startClientCode || '00001',
-      endClientCode: req.query.endClientCode || '99999'
+      endClientCode: req.query.endClientCode || '99999',
+      fiscalYear: req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null
     };
 
     const result = await ledgerModel.getClientLedgerSummary(companyId, filters);
@@ -181,7 +184,8 @@ async function getClientLedgerDetail(req, res) {
       endMonth: req.query.endMonth ? parseInt(req.query.endMonth) : null,
       endDay: req.query.endDay ? parseInt(req.query.endDay) : null,
       accountCode: req.query.accountCode || null,
-      clientId: req.query.clientId || null
+      clientId: req.query.clientId || null,
+      fiscalYear: req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null
     };
 
     const result = await ledgerModel.getClientLedgerDetail(companyId, filters);

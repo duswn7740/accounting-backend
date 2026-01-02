@@ -18,6 +18,8 @@ const accountRoutes = require('./routes/accounts');
 const voucherRoutes = require('./routes/vouchers');
 const salesPurchaseRoutes = require('./routes/salesPurchase');
 const ledgerRoutes = require('./routes/ledgerRoutes');
+const fiscalPeriodRoutes = require('./routes/fiscalPeriods');
+const settlementRoutes = require('./routes/settlement');
 
 // /api/auth로 시작하는 모든 요청은 authRoutes로
 app.use('/api/auth', authRoutes);
@@ -27,6 +29,8 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/vouchers', voucherRoutes);
 app.use('/api/sales-purchase', salesPurchaseRoutes);
 app.use('/api/ledger', ledgerRoutes);
+app.use('/api/fiscal-periods', fiscalPeriodRoutes);
+app.use('/api/settlement', settlementRoutes);
 
 // 테스트 라우트
 app.get('/', (req, res) => {

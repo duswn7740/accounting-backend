@@ -80,4 +80,16 @@ router.get('/:companyId',
   companyController.getCompanyById
 );
 
+// 회사의 회계기수 목록 조회
+router.get('/:companyId/fiscal-periods',
+  authMiddleware,
+  companyController.getFiscalPeriods
+);
+
+// 특정 회계기수 정보 조회
+router.get('/:companyId/fiscal-periods/:fiscalYear',
+  authMiddleware,
+  companyController.getFiscalPeriodByYear
+);
+
 module.exports = router;

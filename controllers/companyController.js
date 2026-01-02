@@ -205,6 +205,48 @@ async function getCompanyById(req, res) {
   }
 }
 
+// 회사의 회계기수 목록 조회
+async function getFiscalPeriods(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { companyId } = req.params;
+
+    const periods = await companyService.getFiscalPeriods(userId, parseInt(companyId));
+
+    res.status(200).json({
+      periods
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      error: error.message
+    });
+  }
+}
+
+// 특정 회계기수 정보 조회
+async function getFiscalPeriodByYear(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { companyId, fiscalYear } = req.params;
+
+    const period = await companyService.getFiscalPeriodByYear(
+      userId,
+      parseInt(companyId),
+      parseInt(fiscalYear)
+    );
+
+    res.status(200).json({
+      period
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
   register,
   search,
@@ -216,5 +258,7 @@ module.exports = {
   getApprovedEmployees,
   getRejectedEmployees,
   updateEmployeeRole,
-  getCompanyById
+  getCompanyById,
+  getFiscalPeriods,
+  getFiscalPeriodByYear
 };

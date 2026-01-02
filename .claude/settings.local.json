@@ -7,7 +7,29 @@
       "Bash(grep:*)",
       "Bash(powershell -Command \"Get-Content ''models\\\\ledgerModel.js'' | Measure-Object -Line\")",
       "Bash(powershell -Command:*)",
-      "Bash(npm run query:*)"
+      "Bash(npm run query:*)",
+      "Bash(cat:*)",
+      "Bash(npm run query:mysql:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run query:mysql:\"SELECT * FROM fiscal_periods WHERE company_id = 1\")",
+      "Bash(git checkout:*)",
+      "Bash(npm start)",
+      "Bash(curl:*)",
+      "Bash(del \"C:\\\\Users\\\\duswn\\\\Desktop\\\\연주\\\\vscode\\\\accountring project\\\\accounting-frontend\\\\src\\\\pages\\\\Settlement\\\\SettlementVoucher.module.css\")",
+      "Bash(npm run:*)",
+      "Bash(taskkill:*)",
+      "Bash(more:*)",
+      "Bash(timeout /t 3)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(node check-vouchers-17.js:*)",
+      "Bash(node check-vouchers-31.js:*)",
+      "Bash(node -e:*)",
+      "Bash(dir:*)",
+      "Bash(node migrate-voucher-numbers.js:*)",
+      "Bash(node check-null-vouchers.js:*)",
+      "Bash(node delete-null-vouchers.js:*)"
     ]
   }
 }

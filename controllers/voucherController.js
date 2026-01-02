@@ -1,6 +1,33 @@
 const voucherService = require('../services/voucherService');
 
-// 전표 라인 조회
+// 전표 라인 조회 (회계기수별)
+async function getVoucherLinesByFiscalYear(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { companyId, fiscalYear } = req.query;
+
+    if (!companyId || !fiscalYear) {
+      return res.status(400).json({
+        error: '회사 ID와 회계기수가 필요합니다'
+      });
+    }
+
+    const result = await voucherService.getVoucherLinesByFiscalYear(
+      userId,
+      parseInt(companyId),
+      parseInt(fiscalYear)
+    );
+
+    res.status(200).json(result);
+
+  } catch (error) {
+    res.status(400).json({
+      error: error.message
+    });
+  }
+}
+
+// 전표 라인 조회 (날짜별 - 호환성)
 async function getVoucherLinesByDate(req, res) {
   try {
     const userId = req.user.userId;
@@ -106,6 +133,10 @@ async function createVoucherWithLines(req, res) {
     res.status(201).json(result);
 
   } catch (error) {
+    console.error('[createVoucherWithLines ERROR]');
+    console.error('에러 메시지:', error.message);
+    console.error('에러 스택:', error.stack);
+    console.error('요청 데이터:', JSON.stringify(req.body, null, 2));
     res.status(400).json({
       error: error.message
     });
@@ -168,6 +199,7 @@ async function deleteVoucher(req, res) {
 }
 
 module.exports = {
+  getVoucherLinesByFiscalYear,
   getVoucherLinesByDate,
   createVoucherLine,
   updateVoucherLine,
