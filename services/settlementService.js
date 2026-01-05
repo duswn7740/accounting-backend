@@ -218,10 +218,13 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
     console.log('[결산전표 생성] 전표 일자:', voucherDate);
 
     // 기존 결산전표 삭제 (재결산 허용)
+    // voucher_type이 '5'(결차) 또는 '6'(결대)이고 description이 '결산전표 자동생성'인 전표만 삭제
     const [deleteResult] = await connection.query(
-      `DELETE FROM general_vouchers
-       WHERE company_id = ?
-       AND description LIKE '[결산]%'`,
+      `DELETE gv FROM general_vouchers gv
+       INNER JOIN general_voucher_lines gvl ON gv.voucher_id = gvl.voucher_id
+       WHERE gv.company_id = ?
+       AND gvl.voucher_type IN ('5', '6')
+       AND gvl.description = '결산전표 자동생성'`,
       [companyId]
     );
     console.log('[결산전표 생성] 기존 결산전표 삭제:', deleteResult.affectedRows, '건');
@@ -292,18 +295,18 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
     console.log('[결산전표 생성] 생성할 전표 수:', vouchersToCreate.length);
 
     // 전표번호 생성 - 일반전표와 동일한 로직 사용 (라인이 있는 전표만 카운트)
-    const dateStr = voucherDate.toISOString().split('T')[0];
+    const datePart = voucherDate.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+    const voucherNoPattern = `${datePart}-%`; // 20241230-%
+
     const sql = 'SELECT MAX(CAST(SUBSTRING_INDEX(gv.voucher_no, \'-\', -1) AS UNSIGNED)) as max_no ' +
                 'FROM general_vouchers gv ' +
                 'INNER JOIN general_voucher_lines gvl ON gv.voucher_id = gvl.voucher_id ' +
                 'WHERE gv.company_id = ? ' +
-                'AND DATE(ADDTIME(gv.voucher_date, \'09:00:00\')) = ? ' +
                 'AND gv.voucher_no LIKE ?';
 
     const [maxVoucherResult] = await connection.query(sql, [
       companyId,
-      dateStr,
-      '%-___'  // YYYYMMDD-001 형식 (하이픈 뒤 3자리 숫자)
+      voucherNoPattern
     ]);
 
     const maxNo = maxVoucherResult[0].max_no || 0;
@@ -333,7 +336,7 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
       // 전표 라인 생성 (결산 차변: 재고 계정)
       await connection.query(
         `INSERT INTO general_voucher_lines (voucher_id, line_no, voucher_type, account_id, debit_amount, credit_amount, description)
-         VALUES (?, ?, '5', ?, ?, 0, '결산 차변')`,
+         VALUES (?, ?, '5', ?, ?, 0, '결산전표 자동생성')`,
         [voucherId, 1, voucher.account.account_id, voucher.amount]
       );
       console.log('[결산전표 생성] 차변 라인 생성 - 계정:', voucher.account.account_name, '금액:', voucher.amount);
@@ -342,7 +345,7 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
       // TODO: 실제로는 매출원가 계정으로 처리해야 함
       await connection.query(
         `INSERT INTO general_voucher_lines (voucher_id, line_no, voucher_type, account_id, debit_amount, credit_amount, description)
-         VALUES (?, ?, '6', ?, 0, ?, '결산 대변')`,
+         VALUES (?, ?, '6', ?, 0, ?, '결산전표 자동생성')`,
         [voucherId, 2, voucher.account.account_id, voucher.amount]
       );
       console.log('[결산전표 생성] 대변 라인 생성 - 계정:', voucher.account.account_name, '금액:', voucher.amount);
@@ -506,13 +509,12 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
     const period = periods[0];
 
     // 기존 손익 결산 전표 삭제 (수익/비용 계정 → 당기순이익 전표만)
-    // "당기순이익 → 이익잉여금" 전표는 제외
-    // voucher_no가 null인 잘못된 전표도 삭제
+    // 전표 헤더의 description이 '[결산] 수익계정 → 당기순이익' 또는 '[결산] 비용계정 → 당기순이익'인 전표만 삭제
     await connection.query(
       `DELETE FROM general_vouchers
        WHERE company_id = ?
-       AND description LIKE '[결산]%'
-       AND (description LIKE '%→ 당기순이익' OR voucher_no IS NULL)`,
+       AND (description = '[결산] 수익계정 → 당기순이익'
+            OR description = '[결산] 비용계정 → 당기순이익')`,
       [companyId]
     );
 
@@ -536,18 +538,18 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
     }
 
     // 전표번호 생성을 위한 준비
-    const dateStr = voucherDate.toISOString().split('T')[0];
+    const datePart = voucherDate.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+    const voucherNoPattern = `${datePart}-%`; // 20241230-%
+
     const sql = 'SELECT MAX(CAST(SUBSTRING_INDEX(gv.voucher_no, \'-\', -1) AS UNSIGNED)) as max_no ' +
                 'FROM general_vouchers gv ' +
                 'INNER JOIN general_voucher_lines gvl ON gv.voucher_id = gvl.voucher_id ' +
                 'WHERE gv.company_id = ? ' +
-                'AND DATE(ADDTIME(gv.voucher_date, \'09:00:00\')) = ? ' +
                 'AND gv.voucher_no LIKE ?';
 
     const [maxVoucherResult] = await connection.query(sql, [
       companyId,
-      dateStr,
-      '%-___'
+      voucherNoPattern
     ]);
 
     const maxNo = maxVoucherResult[0].max_no || 0;
@@ -610,7 +612,7 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
           null, // client_id
           revenue.balance,
           0,
-          `${revenue.account_name} 대체`,
+          `결산전표 ${revenue.account_name} 대체`,
           null, // department_code
           null  // project_code
         ]);
@@ -627,7 +629,7 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
         null, // client_id
         0,
         totalRevenue,
-        '당기순이익',
+        '결산전표 당기순이익',
         null, // department_code
         null  // project_code
       ]);
@@ -672,7 +674,7 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
         null, // client_id
         totalExpense,
         0,
-        '당기순이익',
+        '결산전표 당기순이익',
         null, // department_code
         null  // project_code
       ]);
@@ -688,7 +690,7 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
           null, // client_id
           0,
           expense.balance,
-          `${expense.account_name} 대체`,
+          `결산전표 ${expense.account_name} 대체`,
           null, // department_code
           null  // project_code
         ]);
