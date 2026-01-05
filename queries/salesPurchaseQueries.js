@@ -78,7 +78,8 @@ const FIND_VOUCHER_LINES = `
     a.account_code,
     a.account_name,
     c.client_code,
-    c.client_name
+    c.client_name,
+    c.business_number
   FROM sales_purchase_voucher_lines l
   LEFT JOIN accounts a ON l.account_id = a.account_id
   LEFT JOIN clients c ON l.client_id = c.client_id
