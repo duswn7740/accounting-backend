@@ -44,11 +44,13 @@ async function getSettlementVoucherData(companyId, fiscalYear) {
 
     // 2. 재고 관련 조회
     // 기초 재고 (전기 이월 잔액)
+    // 130: 상품(상업), 131: 제품(제조업-완제품), 132: 재료(제조업), 133: 재공품(제조업-미완성품)
     const [beginningInventory] = await connection.query(`
       SELECT
-        SUM(CASE WHEN a.account_code LIKE '121%' THEN COALESCE(cf.debit_balance, 0) - COALESCE(cf.credit_balance, 0) ELSE 0 END) as beginningProductInventory,
-        SUM(CASE WHEN a.account_code LIKE '131%' THEN COALESCE(cf.debit_balance, 0) - COALESCE(cf.credit_balance, 0) ELSE 0 END) as beginningMaterialInventory,
-        SUM(CASE WHEN a.account_code LIKE '122%' THEN COALESCE(cf.debit_balance, 0) - COALESCE(cf.credit_balance, 0) ELSE 0 END) as beginningFinishedGoodsInventory
+        SUM(CASE WHEN a.account_code = '130' THEN COALESCE(cf.debit_balance, 0) - COALESCE(cf.credit_balance, 0) ELSE 0 END) as beginningProductInventory,
+        SUM(CASE WHEN a.account_code = '132' THEN COALESCE(cf.debit_balance, 0) - COALESCE(cf.credit_balance, 0) ELSE 0 END) as beginningMaterialInventory,
+        SUM(CASE WHEN a.account_code = '131' THEN COALESCE(cf.debit_balance, 0) - COALESCE(cf.credit_balance, 0) ELSE 0 END) as beginningFinishedGoodsInventory,
+        SUM(CASE WHEN a.account_code = '133' THEN COALESCE(cf.debit_balance, 0) - COALESCE(cf.credit_balance, 0) ELSE 0 END) as beginningWorkInProgress
       FROM accounts a
       LEFT JOIN carry_forward_balances cf ON a.account_id = cf.account_id
         AND cf.company_id = ?
@@ -58,17 +60,21 @@ async function getSettlementVoucherData(companyId, fiscalYear) {
     `, [companyId, fiscalYear, companyId]);
 
     // 당기 매입액 (매입 전표에서 차변 발생액)
+    // 130: 상품 (상업-도소매업)
+    // 131: 제품 (제조업-완제품)
+    // 132: 재료/원재료 (제조업)
+    // 133: 재공품 (제조업-미완성품, 일반적으로 매입이 아닌 제조과정에서 발생)
     const [purchases] = await connection.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN a.account_code LIKE '121%' AND l.debit_credit = '차변' THEN l.amount ELSE 0 END), 0) as productPurchases,
-        COALESCE(SUM(CASE WHEN a.account_code LIKE '131%' AND l.debit_credit = '차변' THEN l.amount ELSE 0 END), 0) as materialPurchases
-      FROM accounts a
-      LEFT JOIN sales_purchase_voucher_lines l ON a.account_id = l.account_id
-      LEFT JOIN sales_purchase_vouchers v ON l.voucher_id = v.voucher_id
-        AND v.company_id = ?
+        COALESCE(SUM(CASE WHEN a.account_code = '130' AND l.debit_credit = '차변' THEN l.amount ELSE 0 END), 0) as productPurchases,
+        COALESCE(SUM(CASE WHEN a.account_code = '132' AND l.debit_credit = '차변' THEN l.amount ELSE 0 END), 0) as materialPurchases
+      FROM sales_purchase_vouchers v
+      INNER JOIN sales_purchase_voucher_lines l ON v.voucher_id = l.voucher_id
+      INNER JOIN accounts a ON l.account_id = a.account_id
+      WHERE v.company_id = ?
         AND v.voucher_date BETWEEN ? AND ?
         AND v.voucher_type IN ('매입', '면세매입')
-      WHERE a.company_id = ?
+        AND a.company_id = ?
     `, [companyId, period.start_date, period.end_date, companyId]);
 
     // 3. 노무비 (500번대 중 급여 관련, 금액 있는 경우)
@@ -155,14 +161,17 @@ async function getSettlementVoucherData(companyId, fiscalYear) {
     let endingProductInventory = 0;
     let endingMaterialInventory = 0;
     let endingFinishedGoodsInventory = 0;
+    let endingWorkInProgress = 0;
 
     settlementVouchers.forEach(row => {
       if (row.description.includes('상품')) {
         endingProductInventory = parseFloat(row.debit_amount) || 0;
-      } else if (row.description.includes('원재료')) {
+      } else if (row.description.includes('원재료') || row.description.includes('재료')) {
         endingMaterialInventory = parseFloat(row.debit_amount) || 0;
       } else if (row.description.includes('제품')) {
         endingFinishedGoodsInventory = parseFloat(row.debit_amount) || 0;
+      } else if (row.description.includes('재공품')) {
+        endingWorkInProgress = parseFloat(row.debit_amount) || 0;
       }
     });
 
@@ -173,6 +182,7 @@ async function getSettlementVoucherData(companyId, fiscalYear) {
       beginningProductInventory: parseFloat(beginningInventory[0]?.beginningProductInventory) || 0,
       beginningMaterialInventory: parseFloat(beginningInventory[0]?.beginningMaterialInventory) || 0,
       beginningFinishedGoodsInventory: parseFloat(beginningInventory[0]?.beginningFinishedGoodsInventory) || 0,
+      beginningWorkInProgress: parseFloat(beginningInventory[0]?.beginningWorkInProgress) || 0,
       productPurchases: parseFloat(purchases[0]?.productPurchases) || 0,
       materialPurchases: parseFloat(purchases[0]?.materialPurchases) || 0,
       laborDetails,
@@ -184,7 +194,8 @@ async function getSettlementVoucherData(companyId, fiscalYear) {
       inventory: {
         endingProductInventory,
         endingMaterialInventory,
-        endingFinishedGoodsInventory
+        endingFinishedGoodsInventory,
+        endingWorkInProgress
       }
     };
   } catch (error) {
