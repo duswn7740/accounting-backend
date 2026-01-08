@@ -29,7 +29,45 @@ router.get('/summary', verifyToken, async (req, res) => {
     const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
     console.log('currentMonth:', currentMonth, 'selectedMonth:', selectedMonth, 'prevMonth:', prevMonth);
 
-    // 전월 매출 (계정과목 4로 시작 - 수익) - 일반전표 + 매출전표
+    // 선택한 월의 시작일/종료일 계산 (회계연도 범위 내에서)
+    const fiscalStart = new Date(startDate);
+    const fiscalEnd = new Date(endDate);
+    const fiscalStartYear = fiscalStart.getFullYear();
+    const fiscalStartMonth = fiscalStart.getMonth() + 1;
+
+    // 선택한 월의 시작일/종료일
+    let selectedMonthStart, selectedMonthEnd;
+    if (selectedMonth >= fiscalStartMonth) {
+      // 같은 연도
+      selectedMonthStart = new Date(fiscalStartYear, selectedMonth - 1, 1);
+      selectedMonthEnd = new Date(fiscalStartYear, selectedMonth, 0);
+    } else {
+      // 다음 연도
+      selectedMonthStart = new Date(fiscalStartYear + 1, selectedMonth - 1, 1);
+      selectedMonthEnd = new Date(fiscalStartYear + 1, selectedMonth, 0);
+    }
+
+    // 회계연도 범위로 제한
+    if (selectedMonthStart < fiscalStart) selectedMonthStart = fiscalStart;
+    if (selectedMonthEnd > fiscalEnd) selectedMonthEnd = fiscalEnd;
+
+    // 전월 범위 계산
+    let prevMonthStart, prevMonthEnd;
+    if (prevMonth >= fiscalStartMonth) {
+      prevMonthStart = new Date(fiscalStartYear, prevMonth - 1, 1);
+      prevMonthEnd = new Date(fiscalStartYear, prevMonth, 0);
+    } else {
+      prevMonthStart = new Date(fiscalStartYear + 1, prevMonth - 1, 1);
+      prevMonthEnd = new Date(fiscalStartYear + 1, prevMonth, 0);
+    }
+
+    if (prevMonthStart < fiscalStart) prevMonthStart = fiscalStart;
+    if (prevMonthEnd > fiscalEnd) prevMonthEnd = fiscalEnd;
+
+    console.log('selectedMonthStart:', selectedMonthStart, 'selectedMonthEnd:', selectedMonthEnd);
+    console.log('prevMonthStart:', prevMonthStart, 'prevMonthEnd:', prevMonthEnd);
+
+    // 선택한 월 매출 (수익 계정, 영업외손익 제외) - 일반전표 + 매출전표
     const salesQuery = `
       SELECT COALESCE(SUM(sales), 0) as sales
       FROM (
@@ -39,8 +77,9 @@ router.get('/summary', verifyToken, async (req, res) => {
         JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
-          AND a.account_code LIKE '4%'
+          AND a.account_type = '수익'
+          AND a.account_code NOT LIKE '9%'
+          AND vl.voucher_type NOT IN ('5', '6')
         UNION ALL
         SELECT SUM(vl.amount) as sales
         FROM sales_purchase_voucher_lines vl
@@ -48,14 +87,14 @@ router.get('/summary', verifyToken, async (req, res) => {
         JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
           AND v.voucher_type = '매출'
-          AND a.account_code LIKE '4%'
+          AND a.account_type = '수익'
+          AND a.account_code NOT LIKE '9%'
           AND v.is_active = TRUE
       ) combined
     `;
 
-    // 전월 비용 (일반전표: 5,8,9로 시작 / 매입매출전표: voucher_type='매입')
+    // 선택한 월 비용 (비용 계정, 영업외손익 제외, VAT 제외) - 일반전표 + 매입전표
     const expenseQuery = `
       SELECT COALESCE(SUM(expense), 0) as expense
       FROM (
@@ -65,16 +104,19 @@ router.get('/summary', verifyToken, async (req, res) => {
         JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
-          AND (a.account_code LIKE '5%' OR a.account_code LIKE '8%' OR a.account_code LIKE '9%')
+          AND a.account_type = '비용'
+          AND a.account_code NOT LIKE '9%'
+          AND vl.voucher_type NOT IN ('5', '6')
         UNION ALL
         SELECT SUM(vl.amount) as expense
         FROM sales_purchase_voucher_lines vl
         JOIN sales_purchase_vouchers v ON vl.voucher_id = v.voucher_id
+        JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
           AND v.voucher_type = '매입'
+          AND (a.account_type = '비용' OR (a.account_type = '자산' AND a.account_code NOT IN ('135', '255')))
+          AND a.account_code NOT LIKE '9%'
           AND v.is_active = TRUE
       ) combined
     `;
@@ -102,7 +144,7 @@ router.get('/summary', verifyToken, async (req, res) => {
       ) combined
     `;
 
-    // 전월 매출 (증감률 계산용)
+    // 전월 매출 (증감률 계산용, 영업외손익 제외)
     const prevMonthSalesQuery = `
       SELECT COALESCE(SUM(prev_sales), 0) as prev_sales
       FROM (
@@ -112,8 +154,9 @@ router.get('/summary', verifyToken, async (req, res) => {
         JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
-          AND a.account_code LIKE '4%'
+          AND a.account_type = '수익'
+          AND a.account_code NOT LIKE '9%'
+          AND vl.voucher_type NOT IN ('5', '6')
         UNION ALL
         SELECT SUM(vl.amount) as prev_sales
         FROM sales_purchase_voucher_lines vl
@@ -121,14 +164,14 @@ router.get('/summary', verifyToken, async (req, res) => {
         JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
           AND v.voucher_type = '매출'
-          AND a.account_code LIKE '4%'
+          AND a.account_type = '수익'
+          AND a.account_code NOT LIKE '9%'
           AND v.is_active = TRUE
       ) combined
     `;
 
-    // 전월 비용 (증감률 계산용)
+    // 전월 비용 (증감률 계산용, 영업외손익 제외, VAT 제외)
     const prevMonthExpenseQuery = `
       SELECT COALESCE(SUM(prev_expense), 0) as prev_expense
       FROM (
@@ -138,36 +181,39 @@ router.get('/summary', verifyToken, async (req, res) => {
         JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
-          AND (a.account_code LIKE '5%' OR a.account_code LIKE '8%' OR a.account_code LIKE '9%')
+          AND a.account_type = '비용'
+          AND a.account_code NOT LIKE '9%'
+          AND vl.voucher_type NOT IN ('5', '6')
         UNION ALL
         SELECT SUM(vl.amount) as prev_expense
         FROM sales_purchase_voucher_lines vl
         JOIN sales_purchase_vouchers v ON vl.voucher_id = v.voucher_id
+        JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
-          AND MONTH(v.voucher_date) = ?
           AND v.voucher_type = '매입'
+          AND (a.account_type = '비용' OR (a.account_type = '자산' AND a.account_code NOT IN ('135', '255')))
+          AND a.account_code NOT LIKE '9%'
           AND v.is_active = TRUE
       ) combined
     `;
 
     console.log('쿼리 실행 시작...');
-    console.log('salesQuery 파라미터:', [companyId, startDate, endDate, selectedMonth, companyId, startDate, endDate, selectedMonth]);
+    console.log('salesQuery 파라미터:', [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
 
-    const [salesResult] = await pool.query(salesQuery, [companyId, startDate, endDate, selectedMonth, companyId, startDate, endDate, selectedMonth]);
+    const [salesResult] = await pool.query(salesQuery, [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
     console.log('salesResult:', salesResult);
 
-    const [expenseResult] = await pool.query(expenseQuery, [companyId, startDate, endDate, selectedMonth, companyId, startDate, endDate, selectedMonth]);
+    const [expenseResult] = await pool.query(expenseQuery, [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
     console.log('expenseResult:', expenseResult);
 
     const [cashResult] = await pool.query(cashQuery, [companyId, startDate, endDate, companyId, startDate, endDate]);
     console.log('cashResult:', cashResult);
 
-    const [prevSalesResult] = await pool.query(prevMonthSalesQuery, [companyId, startDate, endDate, prevMonth, companyId, startDate, endDate, prevMonth]);
+    const [prevSalesResult] = await pool.query(prevMonthSalesQuery, [companyId, prevMonthStart, prevMonthEnd, companyId, prevMonthStart, prevMonthEnd]);
     console.log('prevSalesResult:', prevSalesResult);
 
-    const [prevExpenseResult] = await pool.query(prevMonthExpenseQuery, [companyId, startDate, endDate, prevMonth, companyId, startDate, endDate, prevMonth]);
+    const [prevExpenseResult] = await pool.query(prevMonthExpenseQuery, [companyId, prevMonthStart, prevMonthEnd, companyId, prevMonthStart, prevMonthEnd]);
     console.log('prevExpenseResult:', prevExpenseResult);
 
     const sales = parseFloat(salesResult[0].sales) || 0;
@@ -241,24 +287,24 @@ router.get('/monthly-trend', verifyToken, async (req, res) => {
       FROM (
         SELECT
           MONTH(v.voucher_date) as month,
-          SUM(CASE WHEN a.account_code LIKE '4%' THEN vl.credit_amount - vl.debit_amount ELSE 0 END) as sales,
-          SUM(CASE WHEN a.account_code LIKE '5%' OR a.account_code LIKE '8%' OR a.account_code LIKE '9%'
-            THEN vl.debit_amount - vl.credit_amount ELSE 0 END) as expense
+          SUM(CASE WHEN a.account_type = '수익' AND a.account_code NOT LIKE '9%' THEN vl.credit_amount - vl.debit_amount ELSE 0 END) as sales,
+          SUM(CASE WHEN a.account_type = '비용' AND a.account_code NOT LIKE '9%' THEN vl.debit_amount - vl.credit_amount ELSE 0 END) as expense
         FROM general_voucher_lines vl
         JOIN general_vouchers v ON vl.voucher_id = v.voucher_id
         JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
           AND MONTH(v.voucher_date) BETWEEN ? AND ?
+          AND vl.voucher_type NOT IN ('5', '6')
         GROUP BY MONTH(v.voucher_date)
         UNION ALL
         SELECT
           MONTH(v.voucher_date) as month,
-          SUM(CASE WHEN v.voucher_type = '매출' AND a.account_code LIKE '4%' THEN vl.amount ELSE 0 END) as sales,
-          SUM(CASE WHEN v.voucher_type = '매입' THEN vl.amount ELSE 0 END) as expense
+          SUM(CASE WHEN v.voucher_type = '매출' AND a.account_type = '수익' AND a.account_code NOT LIKE '9%' THEN vl.amount ELSE 0 END) as sales,
+          SUM(CASE WHEN v.voucher_type = '매입' AND (a.account_type = '비용' OR (a.account_type = '자산' AND a.account_code NOT IN ('135', '255'))) AND a.account_code NOT LIKE '9%' THEN vl.amount ELSE 0 END) as expense
         FROM sales_purchase_voucher_lines vl
         JOIN sales_purchase_vouchers v ON vl.voucher_id = v.voucher_id
-        LEFT JOIN accounts a ON vl.account_id = a.account_id
+        JOIN accounts a ON vl.account_id = a.account_id
         WHERE v.company_id = ?
           AND v.voucher_date BETWEEN ? AND ?
           AND MONTH(v.voucher_date) BETWEEN ? AND ?
