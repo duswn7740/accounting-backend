@@ -29,7 +29,15 @@
       "Bash(dir:*)",
       "Bash(node migrate-voucher-numbers.js:*)",
       "Bash(node check-null-vouchers.js:*)",
-      "Bash(node delete-null-vouchers.js:*)"
+      "Bash(node delete-null-vouchers.js:*)",
+      "Bash(npm run build:*)",
+      "Bash(python transform_voucher.py:*)",
+      "Bash(python3:*)",
+      "Bash(/c/Users/duswn/AppData/Local/Microsoft/WindowsApps/python transform_voucher.py)",
+      "Bash(node transform.js:*)",
+      "Bash(pkill:*)",
+      "Bash(timeout 10 tail:*)",
+      "Bash(node -e \"const db = require\\(''./config/database''\\); db.query\\(''DESCRIBE general_voucher_lines''\\).then\\(\\([cols]\\) => { console.log\\(''general_voucher_lines:''\\); cols.forEach\\(c => console.log\\(''  '' + c.Field\\)\\); return db.query\\(''DESCRIBE sales_purchase_voucher_lines''\\); }\\).then\\(\\([cols]\\) => { console.log\\(''\\\\nsales_purchase_voucher_lines:''\\); cols.forEach\\(c => console.log\\(''  '' + c.Field\\)\\); process.exit\\(0\\); }\\).catch\\(err => { console.error\\(err\\); process.exit\\(1\\); }\\);\")"
     ]
   }
 }
