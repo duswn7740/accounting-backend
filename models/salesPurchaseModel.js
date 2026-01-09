@@ -2,20 +2,29 @@ const db = require('../config/database');
 const queries = require('../queries/salesPurchaseQueries');
 
 // 전표번호 생성 (매출/매입 구분 없이 날짜별로 일련번호 부여)
+// 형식: YYYYMMDD-001, YYYYMMDD-002, ...
 async function generateVoucherNo(companyId, voucherDate) {
-  const [rows] = await db.query(queries.GET_LAST_VOUCHER_NO, [companyId, voucherDate]);
+  // voucherDate를 YYYY-MM-DD 형식으로 변환
+  const dateStr = voucherDate.substring(0, 10);
 
-  if (rows.length === 0) {
-    // 해당 날짜에 첫 번째 전표
-    return '001';
-  }
+  // SUBSTRING_INDEX로 하이픈 뒤의 숫자만 추출하여 MAX 계산
+  const sql = 'SELECT MAX(CAST(SUBSTRING_INDEX(voucher_no, \'-\', -1) AS UNSIGNED)) as max_no ' +
+              'FROM sales_purchase_vouchers ' +
+              'WHERE company_id = ? ' +
+              'AND voucher_date = ? ' +
+              'AND is_active = TRUE ' +
+              'AND voucher_no LIKE ?';
 
-  // 마지막 번호에서 1 증가
-  const lastNo = rows[0].voucher_no;
-  const lastSeq = parseInt(lastNo);
-  const newSeq = String(lastSeq + 1).padStart(3, '0');
+  const [rows] = await db.query(sql, [companyId, voucherDate, '%-___']);
 
-  return newSeq;
+  const maxNo = rows[0].max_no || 0;
+  const seqNo = String(maxNo + 1).padStart(3, '0');
+
+  // YYYYMMDD-001 형식으로 반환
+  const datePart = dateStr.replace(/-/g, '');
+  const nextNo = `${datePart}-${seqNo}`;
+
+  return nextNo;
 }
 
 // 매입매출 전표 등록

@@ -129,7 +129,6 @@ async function getNextVoucherNo(companyId, voucherDate) {
   const datePart = dateStr.replace(/-/g, '');
   const nextNo = `${datePart}-${seqNo}`;
 
-  console.log('[getNextVoucherNo] companyId:', companyId, 'voucherDate:', voucherDate, 'dateStr:', dateStr, 'maxNo:', maxNo, 'nextNo:', nextNo);
   return nextNo;
 }
 
