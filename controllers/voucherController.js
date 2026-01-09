@@ -133,10 +133,6 @@ async function createVoucherWithLines(req, res) {
     res.status(201).json(result);
 
   } catch (error) {
-    console.error('[createVoucherWithLines ERROR]');
-    console.error('에러 메시지:', error.message);
-    console.error('에러 스택:', error.stack);
-    console.error('요청 데이터:', JSON.stringify(req.body, null, 2));
     res.status(400).json({
       error: error.message
     });
@@ -146,13 +142,9 @@ async function createVoucherWithLines(req, res) {
 // 전표 전체 수정 (여러 라인)
 async function updateVoucherWithLines(req, res) {
   try {
-    console.log('updateVoucherWithLines - START');
     const userId = req.user.userId;
     const { voucherId } = req.params;
     const voucherData = req.body;
-
-    console.log('updateVoucherWithLines - voucherId:', voucherId);
-    console.log('updateVoucherWithLines - voucherData:', JSON.stringify(voucherData, null, 2));
 
     const result = await voucherService.updateVoucherWithLines(
       userId,
@@ -163,7 +155,6 @@ async function updateVoucherWithLines(req, res) {
     res.status(200).json(result);
 
   } catch (error) {
-    console.log('updateVoucherWithLines - ERROR:', error.message);
     res.status(400).json({
       error: error.message
     });

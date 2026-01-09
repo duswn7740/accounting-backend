@@ -4,7 +4,6 @@ const settlementService = require('../services/settlementService');
 async function getSettlementVoucherData(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
-    console.log(`[결산전표 데이터 조회] ${fiscalYear}기, 회사 ID: ${companyId}`);
 
     const result = await settlementService.getSettlementVoucherData(
       parseInt(companyId),
@@ -13,7 +12,6 @@ async function getSettlementVoucherData(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('결산전표 데이터 조회 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '결산전표 데이터 조회 중 오류가 발생했습니다'
@@ -26,7 +24,6 @@ async function createSettlementVoucher(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
     const { inventory } = req.body;
-    console.log(`[결산전표 생성] ${fiscalYear}기, 회사 ID: ${companyId}`, inventory);
 
     const result = await settlementService.createSettlementVoucher(
       parseInt(companyId),
@@ -36,7 +33,6 @@ async function createSettlementVoucher(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('결산전표 생성 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '결산전표 생성 중 오류가 발생했습니다'
@@ -49,7 +45,6 @@ async function getManufacturingCost(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
     const { codeRange } = req.query;
-    console.log(`[제조원가명세서 조회] ${fiscalYear}기, 회사 ID: ${companyId}, 코드범위: ${codeRange}`);
 
     const result = await settlementService.getManufacturingCostData(
       parseInt(companyId),
@@ -59,7 +54,6 @@ async function getManufacturingCost(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('제조원가명세서 조회 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '제조원가명세서 조회 중 오류가 발생했습니다'
@@ -72,7 +66,6 @@ async function executeManufacturingCostSettlement(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
     const { codeRange } = req.body;
-    console.log(`[제조원가 결산 실행] ${fiscalYear}기, 회사 ID: ${companyId}, 코드범위: ${codeRange}`);
 
     const result = await settlementService.executeManufacturingCostSettlement(
       parseInt(companyId),
@@ -82,7 +75,6 @@ async function executeManufacturingCostSettlement(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('제조원가 결산 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '제조원가 결산 중 오류가 발생했습니다'
@@ -94,7 +86,6 @@ async function executeManufacturingCostSettlement(req, res) {
 async function getIncomeStatement(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
-    console.log(`[손익계산서 조회] ${fiscalYear}기, 회사 ID: ${companyId}`);
 
     const result = await settlementService.getIncomeStatementData(
       parseInt(companyId),
@@ -103,7 +94,6 @@ async function getIncomeStatement(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('손익계산서 조회 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '손익계산서 조회 중 오류가 발생했습니다'
@@ -115,7 +105,6 @@ async function getIncomeStatement(req, res) {
 async function executeIncomeStatementSettlement(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
-    console.log(`[손익계산 결산 실행] ${fiscalYear}기, 회사 ID: ${companyId}`);
 
     const result = await settlementService.executeIncomeStatementSettlement(
       parseInt(companyId),
@@ -124,7 +113,6 @@ async function executeIncomeStatementSettlement(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('손익계산 결산 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '손익계산 결산 중 오류가 발생했습니다'
@@ -136,7 +124,6 @@ async function executeIncomeStatementSettlement(req, res) {
 async function getRetainedEarnings(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
-    console.log(`[이익잉여금처분계산서 조회] ${fiscalYear}기, 회사 ID: ${companyId}`);
 
     const result = await settlementService.getRetainedEarningsData(
       parseInt(companyId),
@@ -145,7 +132,6 @@ async function getRetainedEarnings(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('이익잉여금처분계산서 조회 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '이익잉여금처분계산서 조회 중 오류가 발생했습니다'
@@ -158,7 +144,6 @@ async function executeRetainedEarningsSettlement(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
     const { currentDisposalDate, previousDisposalDate } = req.body;
-    console.log(`[이익잉여금 처분 결산 실행] ${fiscalYear}기, 회사 ID: ${companyId}`);
 
     const result = await settlementService.executeRetainedEarningsSettlement(
       parseInt(companyId),
@@ -169,7 +154,6 @@ async function executeRetainedEarningsSettlement(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('이익잉여금 처분 결산 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '이익잉여금 처분 결산 중 오류가 발생했습니다'
@@ -181,7 +165,6 @@ async function executeRetainedEarningsSettlement(req, res) {
 async function getBalanceSheet(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
-    console.log(`[대차대조표 조회] ${fiscalYear}기, 회사 ID: ${companyId}`);
 
     const result = await settlementService.getBalanceSheetData(
       parseInt(companyId),
@@ -190,7 +173,6 @@ async function getBalanceSheet(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('대차대조표 조회 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '대차대조표 조회 중 오류가 발생했습니다'
@@ -202,7 +184,6 @@ async function getBalanceSheet(req, res) {
 async function getTrialBalance(req, res) {
   try {
     const { companyId, fiscalYear } = req.params;
-    console.log(`[합계잔액시산표 조회] ${fiscalYear}기, 회사 ID: ${companyId}`);
 
     const result = await settlementService.getTrialBalanceData(
       parseInt(companyId),
@@ -211,7 +192,6 @@ async function getTrialBalance(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('합계잔액시산표 조회 실패:', error);
     res.status(500).json({
       success: false,
       message: error.message || '합계잔액시산표 조회 중 오류가 발생했습니다'

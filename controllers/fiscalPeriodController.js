@@ -6,8 +6,6 @@ async function carryForward(req, res) {
     const { fiscalYear } = req.params;
     const { companyId } = req.body;
 
-    console.log(`[이월 처리] ${fiscalYear}기 → ${parseInt(fiscalYear) + 1}기, 회사 ID: ${companyId}`);
-
     const result = await fiscalPeriodService.carryForwardBalances(
       companyId,
       parseInt(fiscalYear)
@@ -15,7 +13,6 @@ async function carryForward(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('이월 처리 실패:', error);
     res.status(500).json({
       success: false,
       error: error.message || '이월 처리 중 오류가 발생했습니다'
@@ -29,8 +26,6 @@ async function closePeriod(req, res) {
     const { fiscalYear } = req.params;
     const { companyId } = req.body;
 
-    console.log(`[마감 처리] ${fiscalYear}기, 회사 ID: ${companyId}`);
-
     const result = await fiscalPeriodService.closeFiscalPeriod(
       companyId,
       parseInt(fiscalYear)
@@ -38,7 +33,6 @@ async function closePeriod(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('마감 처리 실패:', error);
     res.status(500).json({
       success: false,
       error: error.message || '마감 처리 중 오류가 발생했습니다'
@@ -52,8 +46,6 @@ async function reopenPeriod(req, res) {
     const { fiscalYear } = req.params;
     const { companyId } = req.body;
 
-    console.log(`[마감 취소] ${fiscalYear}기, 회사 ID: ${companyId}`);
-
     const result = await fiscalPeriodService.reopenFiscalPeriod(
       companyId,
       parseInt(fiscalYear)
@@ -61,7 +53,6 @@ async function reopenPeriod(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('마감 취소 실패:', error);
     res.status(500).json({
       success: false,
       error: error.message || '마감 취소 중 오류가 발생했습니다'

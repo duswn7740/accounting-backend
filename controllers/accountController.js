@@ -93,36 +93,25 @@ async function deleteAccount(req, res) {
 
 // 계정코드 중복 확인
 async function checkAccountCode(req, res) {
-  console.log('🔵 checkAccountCode 컨트롤러 도착!');
-  console.log('Query:', req.query);
-  
   try {
     const { companyId, accountCode } = req.query;
-    
-    console.log('companyId:', companyId, 'type:', typeof companyId);
-    console.log('accountCode:', accountCode, 'type:', typeof accountCode);
-    
+
     if (!companyId || !accountCode) {
-      console.log('❌ 파라미터 누락');
       return res.status(400).json({
         error: '회사 ID와 계정코드가 필요합니다'
       });
     }
-    
-    console.log('✅ accountModel.checkAccountCode 호출 직전');
+
     const exists = await accountModel.checkAccountCode(
-      parseInt(companyId), 
+      parseInt(companyId),
       accountCode
     );
-    
-    console.log('✅ 결과:', exists);
-    
+
     res.status(200).json({
       exists
     });
-    
+
   } catch (error) {
-    console.log('❌ 에러:', error.message);
     res.status(400).json({
       error: error.message
     });

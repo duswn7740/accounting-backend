@@ -6,18 +6,13 @@ const verifyToken = require('../middleware/authMiddleware');
 // KPI 요약 데이터 (당월 기준)
 router.get('/summary', verifyToken, async (req, res) => {
   try {
-    console.log('=== /summary 요청 시작 ===');
     const { companyId } = req.user;
-    console.log('companyId:', companyId);
 
     const fiscalPeriodInfo = JSON.parse(req.query.fiscalPeriodInfo || '{}');
-    console.log('fiscalPeriodInfo:', fiscalPeriodInfo);
 
     const { startDate, endDate } = fiscalPeriodInfo;
-    console.log('startDate:', startDate, 'endDate:', endDate);
 
     if (!startDate || !endDate) {
-      console.log('ERROR: startDate 또는 endDate 없음');
       return res.status(400).json({ success: false, message: '회계기수를 선택해주세요' });
     }
 
@@ -27,7 +22,6 @@ router.get('/summary', verifyToken, async (req, res) => {
     const defaultMonth = currentMonth === 1 ? 12 : currentMonth - 1;
     const selectedMonth = req.query.month ? parseInt(req.query.month) : defaultMonth;
     const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
-    console.log('currentMonth:', currentMonth, 'selectedMonth:', selectedMonth, 'prevMonth:', prevMonth);
 
     // 선택한 월의 시작일/종료일 계산 (회계연도 범위 내에서)
     const fiscalStart = new Date(startDate);
@@ -63,9 +57,6 @@ router.get('/summary', verifyToken, async (req, res) => {
 
     if (prevMonthStart < fiscalStart) prevMonthStart = fiscalStart;
     if (prevMonthEnd > fiscalEnd) prevMonthEnd = fiscalEnd;
-
-    console.log('selectedMonthStart:', selectedMonthStart, 'selectedMonthEnd:', selectedMonthEnd);
-    console.log('prevMonthStart:', prevMonthStart, 'prevMonthEnd:', prevMonthEnd);
 
     // 선택한 월 매출 (수익 계정, 영업외손익 제외) - 일반전표 + 매출전표
     const salesQuery = `
@@ -198,23 +189,15 @@ router.get('/summary', verifyToken, async (req, res) => {
       ) combined
     `;
 
-    console.log('쿼리 실행 시작...');
-    console.log('salesQuery 파라미터:', [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
-
     const [salesResult] = await pool.query(salesQuery, [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
-    console.log('salesResult:', salesResult);
 
     const [expenseResult] = await pool.query(expenseQuery, [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
-    console.log('expenseResult:', expenseResult);
 
     const [cashResult] = await pool.query(cashQuery, [companyId, startDate, endDate, companyId, startDate, endDate]);
-    console.log('cashResult:', cashResult);
 
     const [prevSalesResult] = await pool.query(prevMonthSalesQuery, [companyId, prevMonthStart, prevMonthEnd, companyId, prevMonthStart, prevMonthEnd]);
-    console.log('prevSalesResult:', prevSalesResult);
 
     const [prevExpenseResult] = await pool.query(prevMonthExpenseQuery, [companyId, prevMonthStart, prevMonthEnd, companyId, prevMonthStart, prevMonthEnd]);
-    console.log('prevExpenseResult:', prevExpenseResult);
 
     const sales = parseFloat(salesResult[0].sales) || 0;
     const expense = parseFloat(expenseResult[0].expense) || 0;
@@ -242,10 +225,6 @@ router.get('/summary', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('=== KPI 조회 실패 ===');
-    console.error('에러 메시지:', error.message);
-    console.error('에러 스택:', error.stack);
-    console.error('SQL 에러:', error.sql);
     res.status(500).json({ success: false, message: 'KPI 조회에 실패했습니다', error: error.message });
   }
 });
@@ -253,31 +232,24 @@ router.get('/summary', verifyToken, async (req, res) => {
 // 월별 매출/비용 추이 (기간 조회)
 router.get('/monthly-trend', verifyToken, async (req, res) => {
   try {
-    console.log('=== /monthly-trend 요청 시작 ===');
     const { companyId } = req.user;
     const { startMonth, endMonth, fiscalYear } = req.query;
-    console.log('companyId:', companyId, 'startMonth:', startMonth, 'endMonth:', endMonth, 'fiscalYear:', fiscalYear);
 
     if (!fiscalYear || !startMonth || !endMonth) {
-      console.log('ERROR: 필수 파라미터 누락');
       return res.status(400).json({ success: false, message: '회계기수와 조회 기간을 입력해주세요' });
     }
 
     // Get fiscal period info from fiscal_periods table
-    console.log('fiscal_periods 조회 중...');
     const [fiscalPeriods] = await pool.query(
       'SELECT start_date, end_date FROM fiscal_periods WHERE company_id = ? AND fiscal_year = ?',
       [companyId, fiscalYear]
     );
-    console.log('fiscalPeriods:', fiscalPeriods);
 
     if (fiscalPeriods.length === 0) {
-      console.log('ERROR: 회계기수를 찾을 수 없음');
       return res.status(400).json({ success: false, message: '해당 회계기수를 찾을 수 없습니다' });
     }
 
     const { start_date: startDate, end_date: endDate } = fiscalPeriods[0];
-    console.log('startDate:', startDate, 'endDate:', endDate);
 
     const query = `
       SELECT
@@ -334,10 +306,6 @@ router.get('/monthly-trend', verifyToken, async (req, res) => {
       data: monthlyData
     });
   } catch (error) {
-    console.error('=== 월별 추이 조회 실패 ===');
-    console.error('에러 메시지:', error.message);
-    console.error('에러 스택:', error.stack);
-    console.error('SQL 에러:', error.sql);
     res.status(500).json({ success: false, message: '월별 추이 조회에 실패했습니다', error: error.message });
   }
 });
@@ -404,7 +372,6 @@ router.get('/notifications', verifyToken, async (req, res) => {
       notifications
     });
   } catch (error) {
-    console.error('알림 조회 실패:', error);
     res.status(500).json({ success: false, message: '알림 조회에 실패했습니다', error: error.message });
   }
 });
