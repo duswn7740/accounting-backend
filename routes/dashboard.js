@@ -6,7 +6,8 @@ const verifyToken = require('../middleware/authMiddleware');
 // KPI 요약 데이터 (당월 기준)
 router.get('/summary', verifyToken, async (req, res) => {
   try {
-    const { companyId } = req.user;
+    // 쿼리 파라미터로 받은 companyId 사용 (없으면 토큰의 companyId 사용)
+    const companyId = req.query.companyId || req.user.companyId;
 
     const fiscalPeriodInfo = JSON.parse(req.query.fiscalPeriodInfo || '{}');
 
@@ -232,7 +233,8 @@ router.get('/summary', verifyToken, async (req, res) => {
 // 월별 매출/비용 추이 (기간 조회)
 router.get('/monthly-trend', verifyToken, async (req, res) => {
   try {
-    const { companyId } = req.user;
+    // 쿼리 파라미터로 받은 companyId 사용 (없으면 토큰의 companyId 사용)
+    const companyId = req.query.companyId || req.user.companyId;
     const { startMonth, endMonth, fiscalYear } = req.query;
 
     if (!fiscalYear || !startMonth || !endMonth) {
