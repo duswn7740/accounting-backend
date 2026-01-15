@@ -53,8 +53,6 @@ async function carryForwardBalances(companyId, fromFiscalYear) {
         [companyId, fromFiscalYear + 1, formatDate(nextStartDate), formatDate(nextEndDate)]
       );
 
-      console.log(`✅ ${fromFiscalYear + 1}기 회계기수 자동 생성: ${formatDate(nextStartDate)} ~ ${formatDate(nextEndDate)}`);
-
       // 생성된 회계기수 다시 조회
       [nextPeriods] = await connection.query(
         'SELECT * FROM fiscal_periods WHERE company_id = ? AND fiscal_year = ?',
@@ -83,55 +81,56 @@ async function carryForwardBalances(companyId, fromFiscalYear) {
     );
 
     // 4. 계정별 잔액 계산 및 이월
-    // 일반전표 + 매입매출전표의 계정별 집계
-    console.log(`📊 계정별 잔액 계산 시작 - 기간: ${startDate} ~ ${endDate}`);
+    // 전기이월 + 일반전표 + 매입매출전표의 계정별 집계
+    // 각 데이터소스를 먼저 집계한 후 합산하여 중복 계산 방지
     const [accountBalances] = await connection.query(
       `SELECT
         a.account_id,
         a.account_code,
         a.account_name,
         a.account_type,
-        COALESCE(SUM(gvl.debit_amount), 0) + COALESCE(SUM(CASE WHEN spvl.debit_credit = '차변' THEN spvl.amount ELSE 0 END), 0) as total_debit,
-        COALESCE(SUM(gvl.credit_amount), 0) + COALESCE(SUM(CASE WHEN spvl.debit_credit = '대변' THEN spvl.amount ELSE 0 END), 0) as total_credit
+        COALESCE(cf.debit_balance, 0) + COALESCE(gvl.total_debit, 0) + COALESCE(spvl.total_debit, 0) as total_debit,
+        COALESCE(cf.credit_balance, 0) + COALESCE(gvl.total_credit, 0) + COALESCE(spvl.total_credit, 0) as total_credit
       FROM accounts a
       LEFT JOIN (
-        SELECT gvl.account_id, gvl.debit_amount, gvl.credit_amount
+        SELECT account_id, debit_balance, credit_balance
+        FROM carry_forward_balances
+        WHERE company_id = ? AND fiscal_year = ? AND client_id IS NULL
+      ) cf ON a.account_id = cf.account_id
+      LEFT JOIN (
+        SELECT gvl.account_id,
+               SUM(gvl.debit_amount) as total_debit,
+               SUM(gvl.credit_amount) as total_credit
         FROM general_voucher_lines gvl
         INNER JOIN general_vouchers gv ON gvl.voucher_id = gv.voucher_id
         WHERE gv.company_id = ?
           AND gv.voucher_date BETWEEN ? AND ?
+        GROUP BY gvl.account_id
       ) gvl ON a.account_id = gvl.account_id
       LEFT JOIN (
-        SELECT spvl.account_id, spvl.debit_credit, spvl.amount
+        SELECT spvl.account_id,
+               SUM(CASE WHEN spvl.debit_credit = '차변' THEN spvl.amount ELSE 0 END) as total_debit,
+               SUM(CASE WHEN spvl.debit_credit = '대변' THEN spvl.amount ELSE 0 END) as total_credit
         FROM sales_purchase_voucher_lines spvl
         INNER JOIN sales_purchase_vouchers spv ON spvl.voucher_id = spv.voucher_id
         WHERE spv.company_id = ?
           AND spv.voucher_date BETWEEN ? AND ?
           AND spv.is_active = TRUE
+        GROUP BY spvl.account_id
       ) spvl ON a.account_id = spvl.account_id
       WHERE a.company_id = ?
-      GROUP BY a.account_id, a.account_code, a.account_name, a.account_type
       HAVING (total_debit - total_credit) != 0`,
-      [companyId, startDate, endDate, companyId, startDate, endDate, companyId]
+      [companyId, fromFiscalYear, companyId, startDate, endDate, companyId, startDate, endDate, companyId]
     );
-
-    console.log(`📊 계정별 잔액 조회 결과: ${accountBalances.length}개 계정`);
-    accountBalances.forEach(acc => {
-      console.log(`  - ${acc.account_code} ${acc.account_name} (${acc.account_type}): 차변=${acc.total_debit}, 대변=${acc.total_credit}`);
-    });
 
     let accountCount = 0;
 
     // 자산, 부채, 자본 계정만 이월 (수익/비용은 손익계정으로 정산)
     for (const account of accountBalances) {
-      // account_type: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
-      console.log(`  🔍 계정 타입 확인: "${account.account_type}" (타입: ${typeof account.account_type})`);
       if (['ASSET', 'LIABILITY', 'EQUITY', '자산', '부채', '자본'].includes(account.account_type)) {
         const balance = parseFloat(account.total_debit) - parseFloat(account.total_credit);
         const debitBalance = balance > 0 ? balance : 0;
         const creditBalance = balance < 0 ? -balance : 0;
-
-        console.log(`  ✅ 이월: ${account.account_code} ${account.account_name} - 차변잔액=${debitBalance}, 대변잔액=${creditBalance}`);
 
         await connection.query(
           `INSERT INTO carry_forward_balances
@@ -141,46 +140,54 @@ async function carryForwardBalances(companyId, fromFiscalYear) {
         );
 
         accountCount++;
-      } else {
-        console.log(`  ⏭️  건너뜀: ${account.account_code} ${account.account_name} (${account.account_type})`);
       }
     }
 
     // 5. 거래처별 잔액 계산 및 이월
-    console.log(`\n📊 거래처별 잔액 계산 시작`);
+    // 전기이월 + 일반전표 + 매입매출전표의 거래처별 집계
+    // 각 데이터소스를 먼저 집계한 후 합산하여 중복 계산 방지
     const [clientBalances] = await connection.query(
       `SELECT
-        a.account_id,
-        c.client_id,
+        combined.account_id,
+        combined.client_id,
         c.client_code,
         c.client_name,
-        COALESCE(SUM(gvl.debit_amount), 0) + COALESCE(SUM(CASE WHEN spvl.debit_credit = '차변' THEN spvl.amount ELSE 0 END), 0) as total_debit,
-        COALESCE(SUM(gvl.credit_amount), 0) + COALESCE(SUM(CASE WHEN spvl.debit_credit = '대변' THEN spvl.amount ELSE 0 END), 0) as total_credit
-      FROM clients c
-      CROSS JOIN accounts a
-      LEFT JOIN (
+        SUM(combined.debit_amount) as total_debit,
+        SUM(combined.credit_amount) as total_credit
+      FROM (
+        -- 전기이월 잔액
+        SELECT account_id, client_id, debit_balance as debit_amount, credit_balance as credit_amount
+        FROM carry_forward_balances
+        WHERE company_id = ? AND fiscal_year = ? AND client_id IS NOT NULL
+
+        UNION ALL
+
+        -- 일반전표 거래
         SELECT gvl.account_id, gvl.client_id, gvl.debit_amount, gvl.credit_amount
         FROM general_voucher_lines gvl
         INNER JOIN general_vouchers gv ON gvl.voucher_id = gv.voucher_id
         WHERE gv.company_id = ?
           AND gv.voucher_date BETWEEN ? AND ?
-      ) gvl ON c.client_id = gvl.client_id AND a.account_id = gvl.account_id
-      LEFT JOIN (
-        SELECT spvl.account_id, spvl.client_id, spvl.debit_credit, spvl.amount
+          AND gvl.client_id IS NOT NULL
+
+        UNION ALL
+
+        -- 매입매출전표 거래
+        SELECT spvl.account_id, spvl.client_id,
+               CASE WHEN spvl.debit_credit = '차변' THEN spvl.amount ELSE 0 END as debit_amount,
+               CASE WHEN spvl.debit_credit = '대변' THEN spvl.amount ELSE 0 END as credit_amount
         FROM sales_purchase_voucher_lines spvl
         INNER JOIN sales_purchase_vouchers spv ON spvl.voucher_id = spv.voucher_id
         WHERE spv.company_id = ?
           AND spv.voucher_date BETWEEN ? AND ?
           AND spv.is_active = TRUE
-      ) spvl ON c.client_id = spvl.client_id AND a.account_id = spvl.account_id
-      WHERE c.company_id = ?
-        AND a.company_id = ?
-      GROUP BY a.account_id, c.client_id, c.client_code, c.client_name
+          AND spvl.client_id IS NOT NULL
+      ) combined
+      INNER JOIN clients c ON combined.client_id = c.client_id
+      GROUP BY combined.account_id, combined.client_id, c.client_code, c.client_name
       HAVING (total_debit - total_credit) != 0`,
-      [companyId, startDate, endDate, companyId, startDate, endDate, companyId, companyId]
+      [companyId, fromFiscalYear, companyId, startDate, endDate, companyId, startDate, endDate]
     );
-
-    console.log(`📊 거래처별 잔액 조회 결과: ${clientBalances.length}개`);
 
     let clientCount = 0;
 
@@ -188,8 +195,6 @@ async function carryForwardBalances(companyId, fromFiscalYear) {
       const balance = parseFloat(clientBalance.total_debit) - parseFloat(clientBalance.total_credit);
       const debitBalance = balance > 0 ? balance : 0;
       const creditBalance = balance < 0 ? -balance : 0;
-
-      console.log(`  ✅ 거래처이월: ${clientBalance.client_code} ${clientBalance.client_name} - 차변잔액=${debitBalance}, 대변잔액=${creditBalance}`);
 
       await connection.query(
         `INSERT INTO carry_forward_balances

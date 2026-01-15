@@ -18,11 +18,6 @@ async function getVoucherLinesByFiscalYear(userId, companyId, fiscalYear) {
     fiscalYear
   );
 
-  console.log('[전표 조회] 샘플 데이터 (첫 3개):');
-  lines.slice(0, 3).forEach(line => {
-    console.log(`  voucher_type: ${line.voucher_type}, debit: ${line.debit_amount}, credit: ${line.credit_amount}, amount: ${line.amount}`);
-  });
-
   return { lines };
 }
 
@@ -79,12 +74,10 @@ async function createVoucherLine(userId, lineData) {
   let voucherId = lineData.voucherId;
 
   if (!voucherId) {
-    console.log('[createVoucherLine] 전표번호 자동 생성 시작 - companyId:', companyId, 'voucherDate:', lineData.voucherDate);
     const voucherNo = await voucherModel.getNextVoucherNo(
       companyId,
       lineData.voucherDate
     );
-    console.log('[createVoucherLine] 생성된 전표번호:', voucherNo);
 
     voucherId = await voucherModel.createVoucher({
       companyId,
@@ -96,7 +89,6 @@ async function createVoucherLine(userId, lineData) {
       status: '확정',
       createdBy: userId
     });
-    console.log('[createVoucherLine] 생성된 voucherId:', voucherId, 'voucherNo:', voucherNo);
   }
 
   const existingLines = await voucherModel.findVoucherLinesByVoucher(voucherId);
@@ -252,17 +244,12 @@ async function createVoucherWithLines(userId, voucherData) {
 
   // 전표 날짜 검증: 회계기수 범위 내에 있는지 확인
   if (voucherDate) {
-    console.log('[전표 생성] companyId:', companyId, 'voucherDate:', voucherDate);
-
     const fiscalPeriod = await companyModel.findFiscalPeriodByDate(
       companyId,
       voucherDate
     );
 
-    console.log('[전표 생성] 찾은 회계기수:', fiscalPeriod);
-
     if (!fiscalPeriod) {
-      console.error('[전표 생성 실패] 회계기수를 찾을 수 없음. companyId:', companyId, 'voucherDate:', voucherDate);
       throw new Error('전표 날짜가 유효한 회계기수에 속하지 않습니다. 회계기수를 먼저 생성해주세요.');
     }
 
@@ -290,16 +277,10 @@ async function createVoucherWithLines(userId, voucherData) {
   }
 
   // 전표번호 결정 (수동 입력 또는 자동 생성)
-  console.log('[전표 생성] voucherNo 원본:', voucherNo, 'typeof:', typeof voucherNo, '!voucherNo:', !voucherNo);
   let finalVoucherNo = voucherNo;
   if (!finalVoucherNo) {
-    console.log('[전표 생성] voucherNo가 비어있어서 자동 생성 시작');
     finalVoucherNo = await voucherModel.getNextVoucherNo(companyId, voucherDate);
-    console.log('[전표 생성] 자동 생성된 번호:', finalVoucherNo);
-  } else {
-    console.log('[전표 생성] voucherNo가 이미 있음:', finalVoucherNo);
   }
-  console.log('[전표 생성] 최종 전표번호:', finalVoucherNo);
 
   // 전표 헤더 생성
   const voucherId = await voucherModel.createVoucher({

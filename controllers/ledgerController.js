@@ -149,14 +149,14 @@ async function getClientLedgerSummary(req, res) {
   try {
     const companyId = req.query.companyId;
     const filters = {
-      startMonth: req.query.startMonth ? parseInt(req.query.startMonth) : null,
-      startDay: req.query.startDay ? parseInt(req.query.startDay) : null,
-      endMonth: req.query.endMonth ? parseInt(req.query.endMonth) : null,
-      endDay: req.query.endDay ? parseInt(req.query.endDay) : null,
+      startMonth: req.query.startMonth && req.query.startMonth !== '' ? parseInt(req.query.startMonth) : null,
+      startDay: req.query.startDay && req.query.startDay !== '' ? parseInt(req.query.startDay) : null,
+      endMonth: req.query.endMonth && req.query.endMonth !== '' ? parseInt(req.query.endMonth) : null,
+      endDay: req.query.endDay && req.query.endDay !== '' ? parseInt(req.query.endDay) : null,
       accountCode: req.query.accountCode || null,
       startClientCode: req.query.startClientCode || '00001',
       endClientCode: req.query.endClientCode || '99999',
-      fiscalYear: req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null
+      fiscalYear: req.query.fiscalYear && req.query.fiscalYear !== '' ? parseInt(req.query.fiscalYear) : null
     };
 
     const result = await ledgerModel.getClientLedgerSummary(companyId, filters);

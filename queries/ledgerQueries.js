@@ -2,7 +2,7 @@
 const GET_ACCOUNT_LEDGER = `
   SELECT
     v.voucher_id,
-    v.voucher_date,
+    DATE_FORMAT(v.voucher_date, '%Y-%m-%d') as voucher_date,
     v.voucher_type,
     v.voucher_no,
     l.line_no,
@@ -30,7 +30,7 @@ const GET_ACCOUNT_LEDGER = `
 const GET_ACCOUNT_LEDGER_ALL = `
   SELECT
     v.voucher_id,
-    v.voucher_date,
+    DATE_FORMAT(v.voucher_date, '%Y-%m-%d') as voucher_date,
     'general' as voucher_type,
     v.voucher_no,
     l.line_no,
@@ -71,7 +71,7 @@ const GET_ACCOUNT_LEDGER_ALL = `
 
   SELECT
     v.voucher_id,
-    v.voucher_date,
+    DATE_FORMAT(v.voucher_date, '%Y-%m-%d') as voucher_date,
     v.voucher_type,
     v.voucher_no,
     l.line_no,
@@ -102,7 +102,7 @@ const GET_ACCOUNT_LEDGER_ALL = `
         AND v2.is_active = TRUE
     )
 
-  ORDER BY account_code ASC, voucher_date ASC, voucher_no ASC, line_no ASC
+  ORDER BY account_code ASC, voucher_date ASC, CAST(SUBSTRING_INDEX(voucher_no, '-', -1) AS UNSIGNED) ASC, line_no ASC
 `;
 
 // 조회된 계정 목록 요약 (사이드바용) - 일반전표 + 매입매출전표
@@ -207,7 +207,7 @@ const GET_CLIENT_LEDGER_SUMMARY = `
 const GET_CLIENT_LEDGER_DETAIL = `
   SELECT
     v.voucher_id,
-    v.voucher_date,
+    DATE_FORMAT(v.voucher_date, '%Y-%m-%d') as voucher_date,
     'general' as voucher_type,
     v.voucher_no,
     l.line_no,
@@ -228,7 +228,7 @@ const GET_CLIENT_LEDGER_DETAIL = `
 
   SELECT
     v.voucher_id,
-    v.voucher_date,
+    DATE_FORMAT(v.voucher_date, '%Y-%m-%d') as voucher_date,
     v.voucher_type,
     v.voucher_no,
     l.line_no,

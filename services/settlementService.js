@@ -212,8 +212,6 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
   try {
     await connection.beginTransaction();
 
-    console.log('[결산전표 생성] 시작 - inventory:', inventory);
-
     // 회계기수 정보 조회
     const [periods] = await connection.query(
       'SELECT * FROM fiscal_periods WHERE company_id = ? AND fiscal_year = ?',
@@ -226,7 +224,6 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
 
     const period = periods[0];
     const voucherDate = new Date(period.end_date); // 회계기간 마지막 날 (12/31)
-    console.log('[결산전표 생성] 전표 일자:', voucherDate);
 
     // 기존 결산전표 삭제 (재결산 허용)
     // voucher_type이 '5'(결차) 또는 '6'(결대)이고 description이 '결산전표 자동생성'인 전표만 삭제
@@ -238,7 +235,6 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
        AND gvl.description = '결산전표 자동생성'`,
       [companyId]
     );
-    console.log('[결산전표 생성] 기존 결산전표 삭제:', deleteResult.affectedRows, '건');
 
     // 재고 관련 계정 조회
     const [accounts] = await connection.query(
@@ -248,8 +244,6 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
        AND account_name IN ('상품', '원재료', '제품')`,
       [companyId]
     );
-
-    console.log('[결산전표 생성] 재고 계정 조회:', accounts);
 
     const accountMap = {};
     accounts.forEach(acc => {
@@ -261,49 +255,38 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
     // 1. 기말 상품 재고액 전표 생성
     if (inventory.endingProductInventory && inventory.endingProductInventory > 0) {
       const productAccount = accountMap['상품'];
-      console.log('[결산전표 생성] 상품 계정:', productAccount);
       if (productAccount) {
         vouchersToCreate.push({
           account: productAccount,
           amount: inventory.endingProductInventory,
           description: '[결산] 기말 상품 재고액'
         });
-      } else {
-        console.log('[결산전표 생성] 경고: 상품 계정을 찾을 수 없음');
       }
     }
 
     // 2. 기말 원재료 재고액 전표 생성
     if (inventory.endingMaterialInventory && inventory.endingMaterialInventory > 0) {
       const materialAccount = accountMap['원재료'];
-      console.log('[결산전표 생성] 원재료 계정:', materialAccount);
       if (materialAccount) {
         vouchersToCreate.push({
           account: materialAccount,
           amount: inventory.endingMaterialInventory,
           description: '[결산] 기말 원재료 재고액'
         });
-      } else {
-        console.log('[결산전표 생성] 경고: 원재료 계정을 찾을 수 없음');
       }
     }
 
     // 3. 기말 제품 재고액 전표 생성
     if (inventory.endingFinishedGoodsInventory && inventory.endingFinishedGoodsInventory > 0) {
       const goodsAccount = accountMap['제품'];
-      console.log('[결산전표 생성] 제품 계정:', goodsAccount);
       if (goodsAccount) {
         vouchersToCreate.push({
           account: goodsAccount,
           amount: inventory.endingFinishedGoodsInventory,
           description: '[결산] 기말 제품 재고액'
         });
-      } else {
-        console.log('[결산전표 생성] 경고: 제품 계정을 찾을 수 없음');
       }
     }
-
-    console.log('[결산전표 생성] 생성할 전표 수:', vouchersToCreate.length);
 
     // 전표번호 생성 - 일반전표와 동일한 로직 사용 (라인이 있는 전표만 카운트)
     const datePart = voucherDate.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
@@ -325,12 +308,9 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
 
     // 전표 생성
     for (const voucher of vouchersToCreate) {
-      console.log('[결산전표 생성] 전표 생성 중:', voucher.description);
-
       // 전표번호 생성 (형식: YYYYMMDD-###)
       const datePart = voucherDate.toISOString().split('T')[0].replace(/-/g, '');
       const voucherNoStr = `${datePart}-${String(voucherNo).padStart(3, '0')}`;
-      console.log('[결산전표 생성] 전표번호:', voucherNoStr);
 
       // 일반전표 헤더 생성 (created_by는 시스템 사용자 ID 1로 설정)
       const [voucherResult] = await connection.query(
@@ -340,7 +320,6 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
       );
 
       const voucherId = voucherResult.insertId;
-      console.log('[결산전표 생성] 전표 ID:', voucherId);
 
       voucherNo++;
 
@@ -350,7 +329,6 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
          VALUES (?, ?, '5', ?, ?, 0, '결산전표 자동생성')`,
         [voucherId, 1, voucher.account.account_id, voucher.amount]
       );
-      console.log('[결산전표 생성] 차변 라인 생성 - 계정:', voucher.account.account_name, '금액:', voucher.amount);
 
       // 전표 라인 생성 (결산 대변: 매출원가 등 - 일단 임시로 동일 계정에 대변 처리)
       // TODO: 실제로는 매출원가 계정으로 처리해야 함
@@ -359,11 +337,9 @@ async function createSettlementVoucher(companyId, fiscalYear, inventory) {
          VALUES (?, ?, '6', ?, 0, ?, '결산전표 자동생성')`,
         [voucherId, 2, voucher.account.account_id, voucher.amount]
       );
-      console.log('[결산전표 생성] 대변 라인 생성 - 계정:', voucher.account.account_name, '금액:', voucher.amount);
     }
 
     await connection.commit();
-    console.log('[결산전표 생성] 완료 - 총', vouchersToCreate.length, '건 생성');
 
     return {
       success: true,
@@ -596,8 +572,6 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
       const voucherNoStr = `${datePart}-${String(voucherNo).padStart(3, '0')}`;
       const totalRevenue = revenues.reduce((sum, acc) => sum + acc.balance, 0);
 
-      console.log('[손익결산] 수익계정 전표번호:', voucherNoStr, '계정 수:', revenues.length, '합계:', totalRevenue);
-
       // 전표 생성
       const [voucherResult] = await connection.query(
         `INSERT INTO general_vouchers (company_id, voucher_date, voucher_no, description, created_by)
@@ -657,8 +631,6 @@ async function executeIncomeStatementSettlement(companyId, fiscalYear) {
       const datePart = voucherDate.toISOString().split('T')[0].replace(/-/g, '');
       const voucherNoStr = `${datePart}-${String(voucherNo).padStart(3, '0')}`;
       const totalExpense = expenses.reduce((sum, acc) => sum + acc.balance, 0);
-
-      console.log('[손익결산] 비용계정 전표번호:', voucherNoStr, '계정 수:', expenses.length, '합계:', totalExpense);
 
       // 전표 생성
       const [voucherResult] = await connection.query(
@@ -796,8 +768,6 @@ async function executeRetainedEarningsSettlement(companyId, fiscalYear, currentD
   const connection = await db.getConnection();
 
   try {
-    console.log('[이익잉여금 처분일 저장]', { fiscalYear, currentDisposalDate, previousDisposalDate });
-
     // 빈 문자열을 null로 변환 (DATE 타입은 빈 문자열을 받을 수 없음)
     const currentDate = currentDisposalDate && currentDisposalDate.trim() !== '' ? currentDisposalDate : null;
     const previousDate = previousDisposalDate && previousDisposalDate.trim() !== '' ? previousDisposalDate : null;
@@ -938,8 +908,6 @@ async function getTrialBalanceData(companyId, fiscalYear) {
       [companyId, fiscalYear, companyId, period.start_date, period.end_date]
     );
 
-    console.log(`[합계잔액시산표] 조회된 계정 수: ${accounts.length}`);
-
     let sumOpeningDebit = 0;
     let sumOpeningCredit = 0;
     let sumTotalDebit = 0;
@@ -965,20 +933,6 @@ async function getTrialBalanceData(companyId, fiscalYear) {
       sumBalanceDebit += balanceDebit;
       sumBalanceCredit += balanceCredit;
 
-      // 디버깅: 보통예금 계정 확인
-      if (row.account_name && row.account_name.includes('보통예금')) {
-        console.log('보통예금 계정 발견:', {
-          accountCode: row.account_code,
-          accountName: row.account_name,
-          accountType: row.account_type,
-          accountCategory: row.account_category,
-          totalDebit,
-          totalCredit,
-          balanceDebit,
-          balanceCredit
-        });
-      }
-
       return {
         accountCode: row.account_code,
         accountName: row.account_name,
@@ -992,8 +946,6 @@ async function getTrialBalanceData(companyId, fiscalYear) {
         balanceCredit
       };
     });
-
-    console.log(`[합계잔액시산표] 반환할 계정 수: ${accountsData.length}`);
 
     return {
       accounts: accountsData,
