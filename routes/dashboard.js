@@ -30,6 +30,14 @@ router.get('/summary', verifyToken, async (req, res) => {
     const fiscalStartYear = fiscalStart.getFullYear();
     const fiscalStartMonth = fiscalStart.getMonth() + 1;
 
+    // 날짜를 YYYY-MM-DD 형식 문자열로 변환하는 함수
+    const formatDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     // 선택한 월의 시작일/종료일
     let selectedMonthStart, selectedMonthEnd;
     if (selectedMonth >= fiscalStartMonth) {
@@ -46,9 +54,25 @@ router.get('/summary', verifyToken, async (req, res) => {
     if (selectedMonthStart < fiscalStart) selectedMonthStart = fiscalStart;
     if (selectedMonthEnd > fiscalEnd) selectedMonthEnd = fiscalEnd;
 
-    // 전월 범위 계산
+    // 문자열 형식으로 변환 (시간대 문제 방지)
+    const selectedMonthStartStr = formatDate(selectedMonthStart);
+    const selectedMonthEndStr = formatDate(selectedMonthEnd);
+
+    // 전월 범위 계산 - 선택월이 회계기수 시작월이면 전기수 12월 조회
     let prevMonthStart, prevMonthEnd;
-    if (prevMonth >= fiscalStartMonth) {
+    let usePrevFiscalYear = false;
+
+    if (selectedMonth === fiscalStartMonth) {
+      // 선택월이 회계기수 시작월이면 전기수의 마지막 달 조회
+      usePrevFiscalYear = true;
+      // 전기수 마지막 달 = 현재 회계기수 시작일 - 1일이 속한 달
+      const prevFiscalEnd = new Date(fiscalStart);
+      prevFiscalEnd.setDate(prevFiscalEnd.getDate() - 1);
+      const prevYear = prevFiscalEnd.getFullYear();
+      const prevMonthNum = prevFiscalEnd.getMonth() + 1;
+      prevMonthStart = new Date(prevYear, prevMonthNum - 1, 1);
+      prevMonthEnd = new Date(prevYear, prevMonthNum, 0);
+    } else if (prevMonth >= fiscalStartMonth) {
       prevMonthStart = new Date(fiscalStartYear, prevMonth - 1, 1);
       prevMonthEnd = new Date(fiscalStartYear, prevMonth, 0);
     } else {
@@ -56,8 +80,15 @@ router.get('/summary', verifyToken, async (req, res) => {
       prevMonthEnd = new Date(fiscalStartYear + 1, prevMonth, 0);
     }
 
-    if (prevMonthStart < fiscalStart) prevMonthStart = fiscalStart;
-    if (prevMonthEnd > fiscalEnd) prevMonthEnd = fiscalEnd;
+    // 같은 회계연도 내일 경우에만 범위 제한 (전기수 조회 시에는 제한하지 않음)
+    if (!usePrevFiscalYear) {
+      if (prevMonthStart < fiscalStart) prevMonthStart = fiscalStart;
+      if (prevMonthEnd > fiscalEnd) prevMonthEnd = fiscalEnd;
+    }
+
+    // 문자열 형식으로 변환
+    const prevMonthStartStr = formatDate(prevMonthStart);
+    const prevMonthEndStr = formatDate(prevMonthEnd);
 
     // 선택한 월 매출 (수익 계정, 영업외손익 제외) - 일반전표 + 매출전표
     const salesQuery = `
@@ -190,15 +221,15 @@ router.get('/summary', verifyToken, async (req, res) => {
       ) combined
     `;
 
-    const [salesResult] = await pool.query(salesQuery, [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
+    const [salesResult] = await pool.query(salesQuery, [companyId, selectedMonthStartStr, selectedMonthEndStr, companyId, selectedMonthStartStr, selectedMonthEndStr]);
 
-    const [expenseResult] = await pool.query(expenseQuery, [companyId, selectedMonthStart, selectedMonthEnd, companyId, selectedMonthStart, selectedMonthEnd]);
+    const [expenseResult] = await pool.query(expenseQuery, [companyId, selectedMonthStartStr, selectedMonthEndStr, companyId, selectedMonthStartStr, selectedMonthEndStr]);
 
     const [cashResult] = await pool.query(cashQuery, [companyId, startDate, endDate, companyId, startDate, endDate]);
 
-    const [prevSalesResult] = await pool.query(prevMonthSalesQuery, [companyId, prevMonthStart, prevMonthEnd, companyId, prevMonthStart, prevMonthEnd]);
+    const [prevSalesResult] = await pool.query(prevMonthSalesQuery, [companyId, prevMonthStartStr, prevMonthEndStr, companyId, prevMonthStartStr, prevMonthEndStr]);
 
-    const [prevExpenseResult] = await pool.query(prevMonthExpenseQuery, [companyId, prevMonthStart, prevMonthEnd, companyId, prevMonthStart, prevMonthEnd]);
+    const [prevExpenseResult] = await pool.query(prevMonthExpenseQuery, [companyId, prevMonthStartStr, prevMonthEndStr, companyId, prevMonthStartStr, prevMonthEndStr]);
 
     const sales = parseFloat(salesResult[0].sales) || 0;
     const expense = parseFloat(expenseResult[0].expense) || 0;
